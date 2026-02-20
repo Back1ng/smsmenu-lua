@@ -408,7 +408,7 @@ M.drawSettingsDialog = function()
             imgui.PopStyleColor(3)
             
         else
-            imgui.TextColored(CONFIG.colors.textGray, "No sounds found in smsmenu/allerts/")
+            imgui.TextColored(CONFIG.colors.textGray, "No sounds found in smsmenu/alerts/")
         end
         
         imgui.Spacing()
