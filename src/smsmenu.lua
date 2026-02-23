@@ -1,6 +1,6 @@
 script_name("SMS Menu")
 script_author("Back1ng")
-script_version("1.0.1")
+script_version("1.0.2")
 script_description("SMS Messenger for SAMP with Facebook Messenger-style UI")
 
 require "lib.moonloader"
