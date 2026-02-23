@@ -319,64 +319,13 @@ M.drawRightPanel = function()
                 local timeStr = tostring(os.date("%H:%M", tonumber(msg.timestamp) or 0) or "")
                 local timeSize = imgui.CalcTextSize(timeStr)
                 
-                -- Read status indicator (checkmarks) for outgoing messages
-                local readStatusWidth = 0
-                if isOutgoing then
-                    readStatusWidth = scaled(16)  -- space for checkmarks
-                end
-                
                 -- Calculate time position (outside bubble) - align to middle of bubble
-                local timeX = isOutgoing and (bubbleX - timeSize.x - scaled(8) - readStatusWidth) or (bubbleX + bubbleWidth + scaled(8))
+                local timeX = isOutgoing and (bubbleX - timeSize.x - scaled(8)) or (bubbleX + bubbleWidth + scaled(8))
                 local timeY = cursorPosY + (bubbleHeight - timeSize.y) / 2
                 
                 -- Draw time
                 imgui.SetCursorPos(imgui.ImVec2(timeX, timeY))
                 imgui.TextColored(CONFIG.colors.textGray, timeStr)
-                
-                -- Read status checkmarks for outgoing messages (drawn as lines)
-                if isOutgoing then
-                    -- Position checkmarks vertically centered with the bubble
-                    local checkX = cursorScreenPos.x + bubbleX - scaled(20)
-                    local checkY = cursorScreenPos.y + (bubbleHeight - scaled(10)) / 2
-                    local checkColor = msg.read and 
-                        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textLight) or 
-                        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray)
-                    
-                    -- Scale checkmark size with font
-                    local checkSize = scaled(4)
-                    local checkLong = scaled(10)
-                    
-                    -- Draw single checkmark (\ shape)
-                    childDrawList:AddLine(
-                        imgui.ImVec2(checkX, checkY + checkSize),
-                        imgui.ImVec2(checkX + checkSize, checkY + checkLong - scaled(3)),
-                        checkColor,
-                        1.5
-                    )
-                    childDrawList:AddLine(
-                        imgui.ImVec2(checkX + checkSize, checkY + checkLong - scaled(3)),
-                        imgui.ImVec2(checkX + checkLong, checkY),
-                        checkColor,
-                        1.5
-                    )
-                    
-                    -- If read, draw second checkmark offset slightly
-                    if msg.read then
-                        local offsetX = scaled(5)
-                        childDrawList:AddLine(
-                            imgui.ImVec2(checkX + offsetX, checkY + checkSize),
-                            imgui.ImVec2(checkX + offsetX + checkSize, checkY + checkLong - scaled(3)),
-                            checkColor,
-                            1.5
-                        )
-                        childDrawList:AddLine(
-                            imgui.ImVec2(checkX + offsetX + checkSize, checkY + checkLong - scaled(3)),
-                            imgui.ImVec2(checkX + offsetX + checkLong, checkY),
-                            checkColor,
-                            1.5
-                        )
-                    end
-                end
                 
                 -- Move cursor down for next message
                 imgui.SetCursorPosY(cursorPosY + bubbleHeight + scaled(12))
