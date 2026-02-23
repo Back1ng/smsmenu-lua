@@ -153,6 +153,8 @@ M.drawLeftPanel = function()
     imgui.SetCursorPos(imgui.ImVec2(0, scaled(103)))
     imgui.BeginChild("ContactsList", imgui.ImVec2(panelWidth, windowSize.y - scaled(105)), false)
     
+    local drawList = imgui.GetWindowDrawList()
+    
     local contactsToShow = state.filteredContacts
     if #contactsToShow == 0 then
         contactsToShow = state.contacts
