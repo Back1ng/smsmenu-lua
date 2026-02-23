@@ -319,9 +319,9 @@ M.drawRightPanel = function()
                     readStatusWidth = scaled(16)  -- space for checkmarks
                 end
                 
-                -- Calculate time position (outside bubble) - align to bottom of bubble
+                -- Calculate time position (outside bubble) - align to middle of bubble
                 local timeX = isOutgoing and (bubbleX - timeSize.x - scaled(8) - readStatusWidth) or (bubbleX + bubbleWidth + scaled(8))
-                local timeY = cursorPosY + bubbleHeight - timeSize.y - scaled(4)
+                local timeY = cursorPosY + (bubbleHeight - timeSize.y) / 2
                 
                 -- Draw time
                 imgui.SetCursorPos(imgui.ImVec2(timeX, timeY))
@@ -329,9 +329,9 @@ M.drawRightPanel = function()
                 
                 -- Read status checkmarks for outgoing messages (drawn as lines)
                 if isOutgoing then
-                    -- Position checkmarks aligned with time text
+                    -- Position checkmarks vertically centered with the bubble
                     local checkX = cursorScreenPos.x + bubbleX - scaled(20)
-                    local checkY = cursorScreenPos.y + bubbleHeight - scaled(12)
+                    local checkY = cursorScreenPos.y + (bubbleHeight - scaled(10)) / 2
                     local checkColor = msg.read and 
                         imgui.ColorConvertFloat4ToU32(CONFIG.colors.textLight) or 
                         imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray)
