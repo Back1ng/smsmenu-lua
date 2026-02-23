@@ -141,6 +141,12 @@ M.drawLeftPanel = function()
     
     -- Contacts list
     imgui.SetCursorPos(imgui.ImVec2(0, scaled(103)))
+    
+    imgui.PushStyleColor(imgui.Col.ScrollbarBg, CONFIG.colors.leftPanel)
+    imgui.PushStyleColor(imgui.Col.ScrollbarGrab, CONFIG.colors.scrollbarGrab)
+    imgui.PushStyleColor(imgui.Col.ScrollbarGrabHovered, CONFIG.colors.scrollbarGrabHovered)
+    imgui.PushStyleColor(imgui.Col.ScrollbarGrabActive, CONFIG.colors.scrollbarGrabActive)
+    
     imgui.BeginChild("ContactsList", imgui.ImVec2(panelWidth, windowSize.y - scaled(105)), false)
     
     local drawList = imgui.GetWindowDrawList()
@@ -347,6 +353,7 @@ M.drawLeftPanel = function()
     end
     
     imgui.EndChild()
+    imgui.PopStyleColor(4)
 end
 
 return M

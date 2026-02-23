@@ -212,6 +212,12 @@ M.drawRightPanel = function()
         -- Messages area - positioned to end above input area
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX, scaled(CONFIG.headerHeight)))
         local messagesHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
+        
+        imgui.PushStyleColor(imgui.Col.ScrollbarBg, CONFIG.colors.background)
+        imgui.PushStyleColor(imgui.Col.ScrollbarGrab, CONFIG.colors.scrollbarGrab)
+        imgui.PushStyleColor(imgui.Col.ScrollbarGrabHovered, CONFIG.colors.scrollbarGrabHovered)
+        imgui.PushStyleColor(imgui.Col.ScrollbarGrabActive, CONFIG.colors.scrollbarGrabActive)
+        
         imgui.BeginChild("MessagesArea", imgui.ImVec2(rightPanelWidth, messagesHeight), false)
         
         -- Get draw list for the child window (for proper scrolling)
@@ -395,6 +401,7 @@ M.drawRightPanel = function()
         state.lastScrollMax = scrollMax
         
         imgui.EndChild()
+        imgui.PopStyleColor(4)
         imgui.PopClipRect()
         
         -- Input area separator
