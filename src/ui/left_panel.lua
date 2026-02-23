@@ -121,7 +121,7 @@ M.drawLeftPanel = function()
     local oldFramePadding = { style.FramePadding.x, style.FramePadding.y }
     local oldFrameRounding = style.FrameRounding
     style.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
-    style.FrameRounding = scaled(15)
+    style.FrameRounding = scaled(5)
     
     if imgui.InputText("##search", state.searchText, 256) then
         state.filteredContacts = filterContacts(ffi.string(state.searchText))
