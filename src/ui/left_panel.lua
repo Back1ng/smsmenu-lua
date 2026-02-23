@@ -114,15 +114,6 @@ M.drawLeftPanel = function()
     imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(48)))
     imgui.PushItemWidth(panelWidth - scaled(30))
     
-    -- Search background
-    local searchPos = imgui.GetCursorScreenPos()
-    drawList:AddRectFilled(
-        searchPos,
-        imgui.ImVec2(searchPos.x + panelWidth - scaled(30), searchPos.y + searchHeight),
-        imgui.ColorConvertFloat4ToU32(CONFIG.colors.searchBg),
-        scaled(16.0)
-    )
-    
     -- Устанавливаем высоту инпута поиска через прямое изменение стиля
     local fontSize = imgui.GetFontSize()
     local framePaddingY = math.max(4, (searchHeight - fontSize) / 2)
@@ -130,7 +121,6 @@ M.drawLeftPanel = function()
     local oldFramePadding = { style.FramePadding.x, style.FramePadding.y }
     style.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
     
-    imgui.SetCursorPosX(scaled(22))
     if imgui.InputText("##search", state.searchText, 256) then
         state.filteredContacts = filterContacts(ffi.string(state.searchText))
     end
