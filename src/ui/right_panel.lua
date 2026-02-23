@@ -202,7 +202,7 @@ M.drawRightPanel = function()
         
         -- Set clip rect to prevent messages from drawing over header
         local messagesYStart = windowPos.y + scaled(CONFIG.headerHeight)
-        local messagesYEnd = windowPos.y + windowSize.y - scaled(CONFIG.inputHeight) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
+        local messagesYEnd = windowPos.y + windowSize.y - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         imgui.PushClipRect(
             imgui.ImVec2(windowPos.x + rightPanelX, messagesYStart),
             imgui.ImVec2(windowPos.x + windowSize.x, messagesYEnd),
@@ -211,7 +211,7 @@ M.drawRightPanel = function()
         
         -- Messages area - positioned to end above input area
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX, scaled(CONFIG.headerHeight)))
-        local messagesHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
+        local messagesHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         
         imgui.PushStyleColor(imgui.Col.ScrollbarBg, CONFIG.colors.background)
         imgui.PushStyleColor(imgui.Col.ScrollbarGrab, CONFIG.colors.scrollbarGrab)
@@ -265,7 +265,7 @@ M.drawRightPanel = function()
         end
         
         -- Add top padding to push messages to bottom if they don't fill the area
-        local messagesAreaHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
+        local messagesAreaHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         local topPadding = messagesAreaHeight - totalMessagesHeight
         if topPadding > 0 then
             imgui.Dummy(imgui.ImVec2(1, topPadding))
@@ -355,23 +355,26 @@ M.drawRightPanel = function()
         
         -- Input area separator
         drawList:AddLine(
-            imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y + windowSize.y - scaled(CONFIG.inputHeight) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)),
-            imgui.ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y - scaled(CONFIG.inputHeight) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)),
+            imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y + windowSize.y - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)),
+            imgui.ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)),
             imgui.ColorConvertFloat4ToU32(CONFIG.colors.border),
             1.0
         )
         
         -- Input area - positioned at the bottom, aligned with Send button
-        local sendBtnHeight = scaled(35)
-        local inputY = windowSize.y - scaled(CONFIG.inputHeight) + scaled(5)
+        local sendBtnHeight = scaled(28)
+        local inputAreaHeight = scaled(CONFIG.inputHeight - 20) + scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
+        local inputY = windowSize.y - inputAreaHeight + (inputAreaHeight - sendBtnHeight) / 2
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + scaled(10), inputY))
         
-        -- Устанавливаем высоту инпута совпадающую с кнопкой SEND
+        -- Устанавливаем высоту и скругление инпута совпадающую с кнопкой SEND
         local fontSize = imgui.GetFontSize()
         local framePaddingY = math.max(4, (sendBtnHeight - fontSize) / 2)
         local msgStyle = imgui.GetStyle()
         local oldMsgFramePadding = { msgStyle.FramePadding.x, msgStyle.FramePadding.y }
+        local oldMsgFrameRounding = msgStyle.FrameRounding
         msgStyle.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
+        msgStyle.FrameRounding = scaled(5)
         imgui.PushItemWidth(rightPanelWidth - scaled(100))
         
         local enterPressed = imgui.InputText("##message", state.messageText, 512, imgui.InputTextFlags.EnterReturnsTrue)
@@ -379,6 +382,7 @@ M.drawRightPanel = function()
         imgui.PopItemWidth()
         -- Восстанавливаем стиль
         msgStyle.FramePadding = imgui.ImVec2(oldMsgFramePadding[1], oldMsgFramePadding[2])
+        msgStyle.FrameRounding = oldMsgFrameRounding
         
         if enterPressed then
             local message = ffi.string(state.messageText)
@@ -396,9 +400,12 @@ M.drawRightPanel = function()
         imgui.SameLine()
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(85), inputY))
         
-        local btnColor = imgui.GetStyle().Colors[imgui.Col.Button]
-        imgui.GetStyle().Colors[imgui.Col.Button] = CONFIG.colors.primary
-        imgui.GetStyle().Colors[imgui.Col.ButtonHovered] = CONFIG.colors.primaryHover
+        local btnStyle = imgui.GetStyle()
+        local btnColor = btnStyle.Colors[imgui.Col.Button]
+        local oldBtnRounding = btnStyle.FrameRounding
+        btnStyle.Colors[imgui.Col.Button] = CONFIG.colors.primary
+        btnStyle.Colors[imgui.Col.ButtonHovered] = CONFIG.colors.primaryHover
+        btnStyle.FrameRounding = scaled(5)
         
         if imgui.Button("Send##sendbtn", imgui.ImVec2(scaled(75), sendBtnHeight)) then
             local message = ffi.string(state.messageText)
@@ -411,7 +418,8 @@ M.drawRightPanel = function()
             end
         end
         
-        imgui.GetStyle().Colors[imgui.Col.Button] = btnColor
+        btnStyle.FrameRounding = oldBtnRounding
+        btnStyle.Colors[imgui.Col.Button] = btnColor
     end
 end
 

@@ -110,16 +110,18 @@ M.drawLeftPanel = function()
     imgui.PopStyleColor(4)
     
     -- Search bar
-    local searchHeight = scaled(32)
-    imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(48)))
+    local searchHeight = scaled(28)
+    imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(44)))
     imgui.PushItemWidth(panelWidth - scaled(30))
     
-    -- Устанавливаем высоту инпута поиска через прямое изменение стиля
+    -- Устанавливаем высоту и скругление инпута поиска через прямое изменение стиля
     local fontSize = imgui.GetFontSize()
     local framePaddingY = math.max(4, (searchHeight - fontSize) / 2)
     local style = imgui.GetStyle()
     local oldFramePadding = { style.FramePadding.x, style.FramePadding.y }
+    local oldFrameRounding = style.FrameRounding
     style.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
+    style.FrameRounding = scaled(15)
     
     if imgui.InputText("##search", state.searchText, 256) then
         state.filteredContacts = filterContacts(ffi.string(state.searchText))
@@ -127,10 +129,11 @@ M.drawLeftPanel = function()
     
     -- Восстанавливаем стиль
     style.FramePadding = imgui.ImVec2(oldFramePadding[1], oldFramePadding[2])
+    style.FrameRounding = oldFrameRounding
     imgui.PopItemWidth()
     
     -- Separator
-    local separatorY = scaled(98)
+    local separatorY = scaled(77)
     imgui.SetCursorPosY(separatorY)
     drawList:AddLine(
         imgui.ImVec2(windowPos.x + scaled(15), windowPos.y + separatorY),
@@ -140,7 +143,7 @@ M.drawLeftPanel = function()
     )
     
     -- Contacts list
-    imgui.SetCursorPos(imgui.ImVec2(0, scaled(103)))
+    imgui.SetCursorPos(imgui.ImVec2(0, scaled(80)))
     
     imgui.PushStyleColor(imgui.Col.ScrollbarBg, CONFIG.colors.leftPanel)
     imgui.PushStyleColor(imgui.Col.ScrollbarGrab, CONFIG.colors.scrollbarGrab)

@@ -80,7 +80,7 @@ TextMetrics = {
             Bottom internal padding for message list container.
             Integrated with O(1) estimation pipeline for proper vertical layout.
         --]]
-        BOTTOM_PADDING = 5.0,
+        BOTTOM_PADDING = 0.0,
     },
     
     --[[
