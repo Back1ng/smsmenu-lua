@@ -36,7 +36,7 @@ function M.init(deps)
     helpers = deps.helpers
 end
 
-local function drawContactAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
+local function drawAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
     local primaryWithAlpha = imgui.ImVec4(
         CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z,
         itemAlpha
@@ -90,7 +90,7 @@ local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i,
     end
 end
 
-local function drawUnreadIndicator(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
+local function drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
     local dotRadius = scaled(5)
     local dotX = panelWidth - scaled(20) - slideX
     local dotY = itemPos.y + itemHeight / 2
@@ -130,30 +130,7 @@ local function drawUnreadIndicator(drawList, scaled, windowPos, panelWidth, item
     end
 end
 
-M.drawLeftPanel = function()
-    if not CONFIG.colors then return end
-    
-    local style = imgui.GetStyle()
-    local drawList = imgui.GetWindowDrawList()
-    local windowPos = imgui.GetWindowPos()
-    local windowSize = imgui.GetWindowSize()
-    
-    -- Responsive breakpoint
-    local isMobile = windowSize.x < CONFIG.CONSTANTS.UI.MOBILE_BREAKPOINT
-    
-    -- In mobile mode, don't draw left panel if a contact is selected
-    if isMobile and state.selectedContact then return end
-    
-    -- Panel width: full width in mobile, fixed in desktop
-    local panelWidth = isMobile and windowSize.x or scaled(CONFIG.leftPanelWidth)
-    
-    -- Left panel background
-    drawList:AddRectFilled(
-        windowPos,
-        imgui.ImVec2(windowPos.x + panelWidth, windowPos.y + windowSize.y),
-        imgui.ColorConvertFloat4ToU32(CONFIG.colors.leftPanel)
-    )
-    
+local function drawHeader(panelWidth)
     -- Header with icon/title and new message button
     imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(15)))
     imgui.TextColored(CONFIG.colors.textDark, "SMS Messenger")
@@ -225,6 +202,126 @@ M.drawLeftPanel = function()
     style.FramePadding = imgui.ImVec2(oldFramePadding[1], oldFramePadding[2])
     style.FrameRounding = oldFrameRounding
     imgui.PopItemWidth()
+end
+
+local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
+    local isSelected = state.selectedContact and state.selectedContact.phone == contact.phone
+    
+    -- Contact item with staggered slide-in animation
+    local itemPos = imgui.GetCursorScreenPos()
+    local itemHeight = scaled(CONFIG.CONSTANTS.UI.PANEL.LIST_ITEM_HEIGHT)
+    local staggerDelay = i * CONFIG.CONSTANTS.ANIMATION.LIST_STAGGER_DELAY
+    local itemAnimProgress = math.max(0, math.min(1, (state.windowOpenAnim - staggerDelay) / (1 - staggerDelay)))
+    local itemSlideOffset = (1.0 - easeOutBack(itemAnimProgress)) * 30  -- slide from left
+    local itemAlpha = easeOutCubic(itemAnimProgress)
+    
+    -- Check hover for animation
+    local itemMin = imgui.ImVec2(windowPos.x, itemPos.y)
+    local itemMax = imgui.ImVec2(windowPos.x + panelWidth, itemPos.y + itemHeight)
+    local mousePos = imgui.GetMousePos()
+    local isHovered = (mousePos.x >= itemMin.x and mousePos.x <= itemMax.x and 
+                      mousePos.y >= itemMin.y and mousePos.y <= itemMax.y)
+    
+    -- Update hover animation state
+    if not state.contactHover then state.contactHover = {} end
+    if not state.contactHover[i] then state.contactHover[i] = 0 end
+    
+    if isHovered then
+        state.contactHover[i] = math.min(state.contactHover[i] + CONFIG.CONSTANTS.ANIMATION.HOVER_SPEED, 1.0)
+    else
+        state.contactHover[i] = math.max(state.contactHover[i] - CONFIG.CONSTANTS.ANIMATION.HOVER_SPEED, 0.0)
+    end
+    
+    -- Selection background with hover animation
+    if isSelected then
+        drawList:AddRectFilled(
+            itemMin,
+            itemMax,
+            imgui.ColorConvertFloat4ToU32(CONFIG.colors.selected)
+        )
+    elseif state.contactHover[i] > 0 then
+        -- Animated hover background
+        local hoverColor = imgui.ImVec4(
+            CONFIG.colors.selected.x,
+            CONFIG.colors.selected.y,
+            CONFIG.colors.selected.z,
+            CONFIG.colors.selected.w * state.contactHover[i] * CONFIG.CONSTANTS.ANIMATION.HOVER_MAX_OPACITY
+        )
+        drawList:AddRectFilled(
+            itemMin,
+            itemMax,
+            imgui.ColorConvertFloat4ToU32(hoverColor)
+        )
+    end
+    
+    local slideX = itemSlideOffset
+    
+    -- Avatar
+    local avatarPos = imgui.ImVec2(itemPos.x + scaled(12) + slideX, itemPos.y + scaled(8))
+    local contactNameRaw = tostring(contact.name or "?")
+    local contactName = cp1251_to_utf8(contactNameRaw)
+    local initial = cp1251_to_utf8(contactNameRaw:sub(1, 1)):upper()
+    local isOnline = isContactOnline(contact.name)
+    
+    drawAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
+    
+    -- Name, Message Preview, and Time
+    local timeStr = tostring(formatTime(contact.lastTimestamp) or "")
+    drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i, contact, contactName, timeStr, itemAlpha, CONFIG)
+    
+    -- Unread indicator
+    local unreadCount = contact.unreadCount or 0
+    if unreadCount > 0 and itemAlpha > 0.5 then
+        local pulseScale = 1.0 + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE
+        local pulseAlpha = (CONFIG.CONSTANTS.ANIMATION.PULSE_BASE_ALPHA + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE) * itemAlpha
+        
+        drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
+    end
+    
+    -- Click handler
+    imgui.SetCursorPos(imgui.ImVec2(0, (i - 1) * itemHeight))
+    if imgui.InvisibleButton("##contact_" .. i, imgui.ImVec2(panelWidth, itemHeight)) then
+        state.selectedContact = contact
+        state.scrollToBottom = true
+        state.lastScrollMax = 0
+        -- Mark as read when selecting contact
+        markContactAsRead(contact.phone)
+        -- Refresh contacts list to re-sort
+        local serverKey = getCurrentServerKey()
+        if serverKey then
+            state.contacts = getContactsList(serverKey)
+            state.filteredContacts = filterContacts(ffi.string(state.searchText))
+        end
+    end
+    
+    imgui.SetCursorPosY(i * itemHeight)
+end
+
+M.drawLeftPanel = function()
+    if not CONFIG.colors then return end
+    
+    local style = imgui.GetStyle()
+    local drawList = imgui.GetWindowDrawList()
+    local windowPos = imgui.GetWindowPos()
+    local windowSize = imgui.GetWindowSize()
+    
+    -- Responsive breakpoint
+    local isMobile = windowSize.x < CONFIG.CONSTANTS.UI.MOBILE_BREAKPOINT
+    
+    -- In mobile mode, don't draw left panel if a contact is selected
+    if isMobile and state.selectedContact then return end
+    
+    -- Panel width: full width in mobile, fixed in desktop
+    local panelWidth = isMobile and windowSize.x or scaled(CONFIG.leftPanelWidth)
+    
+    -- Left panel background
+    drawList:AddRectFilled(
+        windowPos,
+        imgui.ImVec2(windowPos.x + panelWidth, windowPos.y + windowSize.y),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.leftPanel)
+    )
+    
+    drawHeader(panelWidth)
     
     -- Separator
     local separatorY = scaled(77)
@@ -247,111 +344,16 @@ M.drawLeftPanel = function()
     }, nil, function()
         imgui.BeginChild("ContactsList", imgui.ImVec2(panelWidth, windowSize.y - scaled(105)), false)
         
-        local drawList = imgui.GetWindowDrawList()
+        local innerDrawList = imgui.GetWindowDrawList()
         
         local contactsToShow = state.filteredContacts
         if #contactsToShow == 0 then
             contactsToShow = state.contacts
         end
-    
-    -- Animation offset for slide-in effect
-    local contactAnimOffset = 0
-    if state.windowOpenAnim < 1.0 then
-        contactAnimOffset = (1.0 - easeOutCubic(state.windowOpenAnim)) * 50
-    end
-    
-    for i, contact in ipairs(contactsToShow) do
-        local isSelected = state.selectedContact and state.selectedContact.phone == contact.phone
         
-        -- Contact item with staggered slide-in animation
-        local itemPos = imgui.GetCursorScreenPos()
-        local itemHeight = scaled(CONFIG.CONSTANTS.UI.PANEL.LIST_ITEM_HEIGHT)
-        local staggerDelay = i * CONFIG.CONSTANTS.ANIMATION.LIST_STAGGER_DELAY
-        local itemAnimProgress = math.max(0, math.min(1, (state.windowOpenAnim - staggerDelay) / (1 - staggerDelay)))
-        local itemSlideOffset = (1.0 - easeOutBack(itemAnimProgress)) * 30  -- slide from left
-        local itemAlpha = easeOutCubic(itemAnimProgress)
-        
-        -- Check hover for animation
-        local itemMin = imgui.ImVec2(windowPos.x, itemPos.y)
-        local itemMax = imgui.ImVec2(windowPos.x + panelWidth, itemPos.y + itemHeight)
-        local mousePos = imgui.GetMousePos()
-        local isHovered = (mousePos.x >= itemMin.x and mousePos.x <= itemMax.x and 
-                          mousePos.y >= itemMin.y and mousePos.y <= itemMax.y)
-        
-        -- Update hover animation state
-        if not state.contactHover then state.contactHover = {} end
-        if not state.contactHover[i] then state.contactHover[i] = 0 end
-        
-        if isHovered then
-            state.contactHover[i] = math.min(state.contactHover[i] + CONFIG.CONSTANTS.ANIMATION.HOVER_SPEED, 1.0)
-        else
-            state.contactHover[i] = math.max(state.contactHover[i] - CONFIG.CONSTANTS.ANIMATION.HOVER_SPEED, 0.0)
+        for i, contact in ipairs(contactsToShow) do
+            drawContactItem(i, contact, innerDrawList, windowPos, panelWidth)
         end
-        
-        -- Selection background with hover animation
-        if isSelected then
-            drawList:AddRectFilled(
-                itemMin,
-                itemMax,
-                imgui.ColorConvertFloat4ToU32(CONFIG.colors.selected)
-            )
-        elseif state.contactHover[i] > 0 then
-            -- Animated hover background
-            local hoverColor = imgui.ImVec4(
-                CONFIG.colors.selected.x,
-                CONFIG.colors.selected.y,
-                CONFIG.colors.selected.z,
-                CONFIG.colors.selected.w * state.contactHover[i] * CONFIG.CONSTANTS.ANIMATION.HOVER_MAX_OPACITY
-            )
-            drawList:AddRectFilled(
-                itemMin,
-                itemMax,
-                imgui.ColorConvertFloat4ToU32(hoverColor)
-            )
-        end
-        
-        local slideX = itemSlideOffset
-        
-        -- Avatar
-        local avatarPos = imgui.ImVec2(itemPos.x + scaled(12) + slideX, itemPos.y + scaled(8))
-        local contactNameRaw = tostring(contact.name or "?")
-        local contactName = cp1251_to_utf8(contactNameRaw)
-        local initial = cp1251_to_utf8(contactNameRaw:sub(1, 1)):upper()
-        local isOnline = isContactOnline(contact.name)
-        
-        drawContactAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
-        
-        -- Name, Message Preview, and Time
-        local timeStr = tostring(formatTime(contact.lastTimestamp) or "")
-        drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i, contact, contactName, timeStr, itemAlpha, CONFIG)
-        
-        -- Unread indicator
-        local unreadCount = contact.unreadCount or 0
-        if unreadCount > 0 and itemAlpha > 0.5 then
-            local pulseScale = 1.0 + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE
-            local pulseAlpha = (CONFIG.CONSTANTS.ANIMATION.PULSE_BASE_ALPHA + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE) * itemAlpha
-            
-            drawUnreadIndicator(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
-        end
-        
-        -- Click handler
-        imgui.SetCursorPos(imgui.ImVec2(0, (i - 1) * itemHeight))
-        if imgui.InvisibleButton("##contact_" .. i, imgui.ImVec2(panelWidth, itemHeight)) then
-            state.selectedContact = contact
-            state.scrollToBottom = true
-            state.lastScrollMax = 0
-            -- Mark as read when selecting contact
-            markContactAsRead(contact.phone)
-            -- Refresh contacts list to re-sort
-            local serverKey = getCurrentServerKey()
-            if serverKey then
-                state.contacts = getContactsList(serverKey)
-                state.filteredContacts = filterContacts(ffi.string(state.searchText))
-            end
-        end
-        
-        imgui.SetCursorPosY(i * itemHeight)
-    end
     
         imgui.EndChild()
     end)
