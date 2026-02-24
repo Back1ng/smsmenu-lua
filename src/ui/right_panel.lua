@@ -42,8 +42,8 @@ M.drawRightPanel = function()
     local windowPos = imgui.GetWindowPos()
     local windowSize = imgui.GetWindowSize()
     
-    -- Responsive breakpoint at 600px
-    local isMobile = windowSize.x < 600
+    -- Responsive breakpoint
+    local isMobile = windowSize.x < CONFIG.CONSTANTS.UI.MOBILE_BREAKPOINT
     
     -- Determine panel dimensions based on mode and whether a contact is selected
     local hasContact = state.selectedContact ~= nil
@@ -144,7 +144,7 @@ M.drawRightPanel = function()
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.2, 0.8, 0.35, 1.0))
         imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.15, 0.6, 0.25, 1.0))
         imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
-        if imgui.Button("Call##callcontact", imgui.ImVec2(scaled(42), scaled(26))) then
+        if imgui.Button("Call##callcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H))) then
             -- Make a call
             if contact.phone then
                 sampSendChat("/c " .. contact.phone)
@@ -158,7 +158,7 @@ M.drawRightPanel = function()
         imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.primary)
         imgui.PushStyleColor(imgui.Col.ButtonActive, CONFIG.colors.primaryHover)
         imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.3, 0.3, 0.3, 1.0))
-        if imgui.Button("Edit##editcontact", imgui.ImVec2(scaled(42), scaled(26))) then
+        if imgui.Button("Edit##editcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H))) then
             -- Pre-fill edit fields with current values
             state.editContactPhone = imgui.new.char[32](contact.phone or "")
             state.editContactName = imgui.new.char[64](contact.name or "")
@@ -173,7 +173,7 @@ M.drawRightPanel = function()
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.4, 0.4, 1.0))
         imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.8, 0.2, 0.2, 1.0))
         imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
-        if imgui.Button("Del##deletecontact", imgui.ImVec2(scaled(42), scaled(26))) then
+        if imgui.Button("Del##deletecontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H))) then
             -- Show confirmation dialog
             state.deleteContactName = contact.name or ""
             state.deleteContactPhone = contact.phone or ""

@@ -42,8 +42,8 @@ M.drawLeftPanel = function()
     local windowPos = imgui.GetWindowPos()
     local windowSize = imgui.GetWindowSize()
     
-    -- Responsive breakpoint at 600px
-    local isMobile = windowSize.x < 600
+    -- Responsive breakpoint
+    local isMobile = windowSize.x < CONFIG.CONSTANTS.UI.MOBILE_BREAKPOINT
     
     -- In mobile mode, don't draw left panel if a contact is selected
     if isMobile and state.selectedContact then return end
@@ -170,8 +170,8 @@ M.drawLeftPanel = function()
         
         -- Contact item with staggered slide-in animation
         local itemPos = imgui.GetCursorScreenPos()
-        local itemHeight = scaled(70)
-        local staggerDelay = i * 0.05  -- 50ms delay per item
+        local itemHeight = scaled(CONFIG.CONSTANTS.UI.PANEL.LIST_ITEM_HEIGHT)
+        local staggerDelay = i * CONFIG.CONSTANTS.ANIMATION.LIST_STAGGER_DELAY
         local itemAnimProgress = math.max(0, math.min(1, (state.windowOpenAnim - staggerDelay) / (1 - staggerDelay)))
         local itemSlideOffset = (1.0 - easeOutBack(itemAnimProgress)) * 30  -- slide from left
         local itemAlpha = easeOutCubic(itemAnimProgress)
@@ -188,9 +188,9 @@ M.drawLeftPanel = function()
         if not state.contactHover[i] then state.contactHover[i] = 0 end
         
         if isHovered then
-            state.contactHover[i] = math.min(state.contactHover[i] + 0.15, 1.0)
+            state.contactHover[i] = math.min(state.contactHover[i] + CONFIG.CONSTANTS.ANIMATION.HOVER_SPEED, 1.0)
         else
-            state.contactHover[i] = math.max(state.contactHover[i] - 0.15, 0.0)
+            state.contactHover[i] = math.max(state.contactHover[i] - CONFIG.CONSTANTS.ANIMATION.HOVER_SPEED, 0.0)
         end
         
         -- Selection background with hover animation
@@ -206,7 +206,7 @@ M.drawLeftPanel = function()
                 CONFIG.colors.selected.x,
                 CONFIG.colors.selected.y,
                 CONFIG.colors.selected.z,
-                CONFIG.colors.selected.w * state.contactHover[i] * 0.5  -- half opacity max
+                CONFIG.colors.selected.w * state.contactHover[i] * CONFIG.CONSTANTS.ANIMATION.HOVER_MAX_OPACITY
             )
             drawList:AddRectFilled(
                 itemMin,
@@ -288,8 +288,8 @@ M.drawLeftPanel = function()
             local dotY = itemPos.y + itemHeight / 2
             
             -- Pulsing effect for unread indicator (scaled by item animation)
-            local pulseScale = 1.0 + math.sin(state.newMessagePulse * math.pi * 2) * 0.2
-            local pulseAlpha = (0.3 + math.sin(state.newMessagePulse * math.pi * 2) * 0.2) * itemAlpha
+            local pulseScale = 1.0 + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE
+            local pulseAlpha = (CONFIG.CONSTANTS.ANIMATION.PULSE_BASE_ALPHA + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE) * itemAlpha
             
             -- Draw pulse halo
             local haloColor = imgui.ColorConvertFloat4ToU32(imgui.ImVec4(

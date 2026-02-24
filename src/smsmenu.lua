@@ -89,7 +89,7 @@ local function startMessageAnimation(phone)
     if not state then return end
     state.messageAnimations[phone] = {
         startTime = imgui.GetTime(),
-        duration = 0.4
+        duration = CONFIG.CONSTANTS.ANIMATION.MESSAGE_DURATION
     }
 end
 
@@ -139,8 +139,8 @@ local function processMessageQueue()
             contact.unreadCount = (contact.unreadCount or 0) + 1
         end
         
-        -- Limit message history to last 100 messages per contact
-        if #contact.messages > 100 then
+        -- Limit message history per contact
+        if #contact.messages > CONFIG.CONSTANTS.LIMITS.MAX_MESSAGES_PER_CONTACT then
             table.remove(contact.messages, 1)
         end
     end
@@ -341,7 +341,7 @@ function main()
         
         -- Animate new message indicator
         if state.newMessageAnim > 0 then
-            state.newMessageAnim = state.newMessageAnim - 0.02
+            state.newMessageAnim = state.newMessageAnim - CONFIG.CONSTANTS.ANIMATION.NEW_MSG_INDICATOR_SPEED
             if state.newMessageAnim < 0 then
                 state.newMessageAnim = 0
             end
@@ -349,9 +349,9 @@ function main()
         
         -- Animate window open
         if state.windowOpen[0] and state.windowOpenAnim < 1.0 then
-            state.windowOpenAnim = math.min(state.windowOpenAnim + 0.15, 1.0)
+            state.windowOpenAnim = math.min(state.windowOpenAnim + CONFIG.CONSTANTS.ANIMATION.WINDOW_TOGGLE_SPEED, 1.0)
         elseif not state.windowOpen[0] and state.windowOpenAnim > 0 then
-            state.windowOpenAnim = math.max(state.windowOpenAnim - 0.15, 0)
+            state.windowOpenAnim = math.max(state.windowOpenAnim - CONFIG.CONSTANTS.ANIMATION.WINDOW_TOGGLE_SPEED, 0)
         end
         
         -- Animate new message pulse
@@ -359,8 +359,8 @@ function main()
         
 
         
-        -- Update online status every 2 seconds when window is open
-        if state.windowOpen[0] and os.time() - (SAMPServices.lastOnlineUpdate or 0) >= 2 then
+        -- Update online status periodically when window is open
+        if state.windowOpen[0] and os.time() - (SAMPServices.lastOnlineUpdate or 0) >= CONFIG.CONSTANTS.TIMING.ONLINE_UPDATE_INTERVAL then
             SAMPServices.updateOnlineStatus()
             SAMPServices.lastOnlineUpdate = os.time()
         end
@@ -370,8 +370,8 @@ function main()
             processMessageQueue()
         end
         
-        -- Periodic save every 5 seconds if there are pending changes
-        if core_storage.pendingSave and os.time() - core_storage.lastSaveTime >= 5 then
+        -- Periodic save if there are pending changes
+        if core_storage.pendingSave and os.time() - core_storage.lastSaveTime >= CONFIG.CONSTANTS.TIMING.SAVE_INTERVAL then
             saveData()
         end
         
