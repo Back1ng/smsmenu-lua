@@ -1,6 +1,6 @@
 local M = {}
 
--- Draw a button with specific styling applied automatically
+
 function M.drawStyledButton(imgui, label, size, colors)
     if colors.button then imgui.PushStyleColor(imgui.Col.Button, colors.button) end
     if colors.hovered then imgui.PushStyleColor(imgui.Col.ButtonHovered, colors.hovered) end
@@ -19,7 +19,7 @@ function M.drawStyledButton(imgui, label, size, colors)
     return clicked
 end
 
--- Center a dialog of given width and height
+
 function M.centerDialog(imgui, scaled, width, height)
     local displaySize = imgui.GetIO().DisplaySize
     local windowSize = imgui.ImVec2(scaled(width), scaled(height))
@@ -31,7 +31,7 @@ function M.centerDialog(imgui, scaled, width, height)
     imgui.SetNextWindowSize(windowSize, imgui.Cond.Always)
 end
 
--- Temporarily apply styles, execute a function, and revert
+
 function M.withStyle(imgui, colors, vars, func)
     local colorCount = 0
     if colors then

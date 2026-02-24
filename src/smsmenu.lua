@@ -10,7 +10,7 @@ local json = require "lib.dkjson"
 local lfs = require "lfs"
 local sampEvents = require "lib.samp.events"
 
--- Utils
+
 local utils_encoding = require "src.utils.encoding"
 local utils_time = require "src.utils.time"
 local utils_anim = require "src.utils.anim"
@@ -28,7 +28,6 @@ local lerp = utils_anim.lerp
 local easeOutCubic = utils_anim.easeOutCubic
 local easeOutBack = utils_anim.easeOutBack
 
--- Helper function to get full path from relative path
 local ui_modals = require "src.ui.modals"
 local ui_left_panel = require "src.ui.left_panel"
 local ui_right_panel = require "src.ui.right_panel"
@@ -40,7 +39,7 @@ end
 
 
 
--- Core modules extraction
+
 local core_config = require "src.core.config"
 local core_theme = require "src.core.theme"
 local core_state = require "src.core.state"
@@ -51,12 +50,12 @@ local CONFIG = core_config.CONFIG
 local scaled = core_config.scaled
 local THEMES = core_theme.THEMES
 
--- Audio
+
 local ALERT_SOUNDS = core_audio.ALERT_SOUNDS
 local scanAlertSounds = core_audio.scanAlertSounds
 local playAlertSound = core_audio.playAlertSound
 
--- Storage
+
 local smsData = core_storage.smsData
 local nameToPhoneCache = core_storage.nameToPhoneCache
 
@@ -71,19 +70,19 @@ local updateContactCache = core_storage.updateContactCache
 local removeContactFromCache = core_storage.removeContactFromCache
 local findPhoneByName = core_storage.findPhoneByName
 
--- Theme
+
 local applyTheme = core_theme.applyTheme
 
--- State initialization
+
 local state = nil
 
--- Initialize core modules
+
 core_storage.init({ CONFIG = CONFIG, getFullPath = getFullPath })
 core_theme.init({ CONFIG = CONFIG, saveSettings = saveSettings })
 core_audio.init({ CONFIG = CONFIG, getFullPath = getFullPath })
 core_state.init({ imgui = imgui })
 
--- Initialize message animation for a contact
+
 local function startMessageAnimation(phone)
     if not state then return end
     state.messageAnimations[phone] = {
@@ -92,7 +91,7 @@ local function startMessageAnimation(phone)
     }
 end
 
--- Get message animation progress (0-1)
+
 local function getMessageAnimationProgress(phone)
     if not state or not state.messageAnimations[phone] then return 1.0 end
     local anim = state.messageAnimations[phone]
@@ -105,7 +104,7 @@ local function getMessageAnimationProgress(phone)
     return easeOutCubic(progress)
 end
 
--- Update UI animations
+
 local function updateAnimations(state, CONFIG)
     if state.newMessageAnim > 0 then
         state.newMessageAnim = state.newMessageAnim - CONFIG.CONSTANTS.ANIMATION.NEW_MSG_INDICATOR_SPEED
@@ -123,7 +122,7 @@ local function updateAnimations(state, CONFIG)
     state.newMessagePulse = (os.clock() % 1.0)
 end
 
--- Main function
+
 function main()
     while not isSampAvailable() do
         wait(100)
@@ -132,16 +131,16 @@ function main()
     -- Load settings (theme) before initializing state
     loadSettings()
     
-    -- Initialize state after imgui is available
+
     state = core_state.createState()
     
     -- Apply saved or default theme
     applyTheme(CONFIG.currentTheme)
     
-    -- Load saved data
+
     loadData()
     
-    -- Scan available alert sounds
+
     scanAlertSounds()
     
     -- Create empty messages.json on first run if doesn't exist
@@ -180,7 +179,7 @@ function main()
         playAlertSound = playAlertSound
     })
     
-    -- Initialize UI modules
+
     local uiDeps = {
         imgui = imgui,
         ffi = ffi,
@@ -231,7 +230,7 @@ function main()
         if state.windowOpen[0] then
             -- Reset window animation
             state.windowOpenAnim = 0.0
-            -- Reset contact hover animations
+
             state.contactHover = {}
             -- Refresh contacts when opening
             local serverKey = SAMPServices.getCurrentServerKey()
@@ -280,12 +279,12 @@ function main()
     while true do
         wait(0)
         
-        -- Hotkey to toggle messenger
+
         if isKeyJustPressed(CONFIG.CONSTANTS.HOTKEYS.TOGGLE_MENU) and not sampIsChatInputActive() and not sampIsDialogActive() then
             _G.toggleSMSMenu()
         end
         
-        -- Update UI animations
+
         updateAnimations(state, CONFIG)
         
 
@@ -308,6 +307,6 @@ function main()
         
     end
     
-    -- Final save on script exit
+
     saveData()
 end

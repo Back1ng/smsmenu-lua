@@ -40,17 +40,15 @@ function M.init(deps)
     helpers = deps.helpers
 end
 
--- New Contact Dialog
 M.drawNewContactDialog = function()
     if not state.showNewContactDialog then return end
     
-    -- Center the dialog on screen
     helpers.centerDialog(imgui, scaled, 350, 200)
     
     if imgui.BeginPopupModal("New Contact", nil, imgui.WindowFlags.AlwaysAutoResize) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
         
-        -- Устанавливаем высоту инпутов в диалоге
+        -- Adjust input frame padding to match dialog style
         local inputHeight = scaled(30)
         local fontSize = imgui.GetFontSize()
         local framePaddingY = math.max(4, (inputHeight - fontSize) / 2)
@@ -73,7 +71,7 @@ M.drawNewContactDialog = function()
         imgui.Spacing()
         imgui.Spacing()
         
-        -- Buttons
+
         local btnWidth = scaled(100)
         imgui.SetCursorPosX(scaled(350) / 2 - btnWidth - scaled(10))
         
@@ -95,14 +93,14 @@ M.drawNewContactDialog = function()
             local name = ffi.string(state.newContactName):gsub("^%s*", ""):gsub("%s*$", "")
             
             if phone ~= "" then
-                -- Use phone as name if no name provided
+
                 if name == "" then
                     name = "Contact " .. phone
                 end
                 
                 local serverKey = getCurrentServerKey()
                 if serverKey then
-                    -- Create or get contact
+
                     local server = getOrCreateServer(serverKey)
                     if not server.contacts[phone] then
                         server.contacts[phone] = {
@@ -112,12 +110,12 @@ M.drawNewContactDialog = function()
                             lastMessage = nil,
                             lastTimestamp = 0
                         }
-                        -- Add to cache
+
                         updateContactCache(serverKey, nil, name, nil, phone)
                         saveData()
                     end
                     
-                    -- Select the contact
+
                     state.contacts = getContactsList(serverKey)
                     for _, c in ipairs(state.contacts) do
                         if c.phone == phone then
@@ -134,17 +132,15 @@ M.drawNewContactDialog = function()
             end
         end
         
-        -- Восстанавливаем стиль
+
         dlgStyle.FramePadding = imgui.ImVec2(oldDlgFramePadding[1], oldDlgFramePadding[2])
         imgui.EndPopup()
     end
 end
 
--- Delete Confirmation Dialog
 M.drawDeleteConfirmDialog = function()
     if not state.showDeleteConfirmDialog then return end
     
-    -- Center the dialog on screen
     helpers.centerDialog(imgui, scaled, 350, 150)
     
     if imgui.BeginPopupModal("Confirm Delete", nil, imgui.WindowFlags.AlwaysAutoResize) then
@@ -161,7 +157,7 @@ M.drawDeleteConfirmDialog = function()
         imgui.Spacing()
         imgui.Spacing()
         
-        -- Buttons
+
         local btnWidth = scaled(100)
         imgui.SetCursorPosX(scaled(350) / 2 - btnWidth - scaled(10))
         
@@ -179,14 +175,14 @@ M.drawDeleteConfirmDialog = function()
             button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
             hovered = imgui.ImVec4(1.0, 0.4, 0.4, 1.0)
         }) then
-            -- Perform deletion
+
             if state.deleteContactPhone ~= "" then
                 deleteContact(state.deleteContactPhone)
-                -- Refresh contacts list immediately
+
                 local serverKey = getCurrentServerKey()
                 if serverKey then
                     state.contacts = getContactsList(serverKey)
-                    -- Also update filtered list to reflect changes
+
                     state.filteredContacts = filterContacts(ffi.string(state.searchText))
                 end
             end
@@ -200,17 +196,15 @@ M.drawDeleteConfirmDialog = function()
     end
 end
 
--- Edit Contact Dialog
 M.drawEditContactDialog = function()
     if not state.showEditContactDialog then return end
     
-    -- Center the dialog on screen
     helpers.centerDialog(imgui, scaled, 350, 200)
     
     if imgui.BeginPopupModal("Edit Contact", nil, imgui.WindowFlags.AlwaysAutoResize) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
         
-        -- Устанавливаем высоту инпутов в диалоге
+        -- Adjust input frame padding to match dialog style
         local inputHeight = scaled(30)
         local fontSize = imgui.GetFontSize()
         local framePaddingY = math.max(4, (inputHeight - fontSize) / 2)
@@ -233,7 +227,7 @@ M.drawEditContactDialog = function()
         imgui.Spacing()
         imgui.Spacing()
         
-        -- Buttons
+
         local btnWidth = scaled(100)
         imgui.SetCursorPosX(scaled(350) / 2 - btnWidth - scaled(10))
         
@@ -263,25 +257,25 @@ M.drawEditContactDialog = function()
                     if contact then
                         local oldName = contact.name
                         
-                        -- If phone number changed, migrate contact
+
                         if oldPhone ~= newPhone then
-                            -- Copy contact to new phone number
+
                             smsData.servers[serverKey].contacts[newPhone] = contact
-                            -- Remove old contact
+
                             smsData.servers[serverKey].contacts[oldPhone] = nil
-                            -- Update phone in contact data
+
                             contact.phone = newPhone
                         end
                         
-                        -- Update name
+
                         contact.name = newName
                         
-                        -- Update cache for name/phone changes
+
                         updateContactCache(serverKey, oldName, newName, oldPhone, newPhone)
                         
                         saveData()
                         
-                        -- Refresh contacts list and update selection
+
                         state.contacts = getContactsList(serverKey)
                         for _, c in ipairs(state.contacts) do
                             if c.phone == newPhone then
@@ -297,17 +291,15 @@ M.drawEditContactDialog = function()
             end
         end
         
-        -- Восстанавливаем стиль
+
         editDlgStyle.FramePadding = imgui.ImVec2(oldEditFramePadding[1], oldEditFramePadding[2])
         imgui.EndPopup()
     end
 end
 
--- Settings Dialog
 M.drawSettingsDialog = function()
     if not state.showSettingsDialog then return end
     
-    -- Center the dialog on screen
     helpers.centerDialog(imgui, scaled, 400, 480)
     
     if imgui.BeginPopupModal("Settings", nil, imgui.WindowFlags.AlwaysAutoResize) then
@@ -315,14 +307,14 @@ M.drawSettingsDialog = function()
         imgui.TextColored(CONFIG.colors.textDark, "Notification Settings")
         imgui.Spacing()
         
-        -- Sound enabled checkbox
+
         local soundEnabled = imgui.new.bool(CONFIG.soundEnabled)
         if imgui.Checkbox("Enable sound notifications", soundEnabled) then
             CONFIG.soundEnabled = soundEnabled[0]
             saveSettings()
         end
         
-        -- Hide SMS from chat checkbox
+
         imgui.Spacing()
         local hideSMS = imgui.new.bool(CONFIG.hideSMSFromChat)
         if imgui.Checkbox("Hide SMS messages from game chat", hideSMS) then
@@ -335,11 +327,11 @@ M.drawSettingsDialog = function()
         imgui.Separator()
         imgui.Spacing()
         
-        -- Sound selection
+
         imgui.TextColored(CONFIG.colors.textGray, "Alert Sound")
         
         if #ALERT_SOUNDS > 0 then
-            -- Sound selection using buttons
+
             imgui.TextColored(CONFIG.colors.textGray, "Select sound (" .. #ALERT_SOUNDS .. " found):")
             imgui.TextColored(CONFIG.colors.textDark, "Current: " .. (CONFIG.currentSound or "None"))
             imgui.Spacing()
@@ -360,7 +352,7 @@ M.drawSettingsDialog = function()
                 if helpers.drawStyledButton(imgui, sound .. "##sound" .. i, imgui.ImVec2(scaled(200), scaled(25)), buttonColors) then
                     CONFIG.currentSound = sound
                     saveSettings()
-                    -- Play preview
+
                     playAlertSound()
                 end
                 
@@ -371,8 +363,8 @@ M.drawSettingsDialog = function()
             
             imgui.Spacing()
             
-            -- Test sound button
-            if helpers.drawStyledButton(imgui, "Проверить звук", imgui.ImVec2(scaled(200), scaled(30)), {
+
+            if helpers.drawStyledButton(imgui, "Test Sound", imgui.ImVec2(scaled(200), scaled(30)), {
                 button = imgui.ImVec4(0.2, 0.7, 0.3, 1.0),
                 hovered = imgui.ImVec4(0.2, 0.8, 0.35, 1.0),
                 text = imgui.ImVec4(1, 1, 1, 1)
@@ -387,7 +379,7 @@ M.drawSettingsDialog = function()
         imgui.Spacing()
         imgui.Spacing()
         
-        -- Font size slider
+
         imgui.Separator()
         imgui.Spacing()
         imgui.TextColored(CONFIG.colors.textGray, "Interface Scale")
@@ -403,7 +395,7 @@ M.drawSettingsDialog = function()
         imgui.Spacing()
         imgui.Spacing()
         
-        -- Close button
+
         local btnWidth = scaled(100)
         imgui.SetCursorPosX((scaled(400) - btnWidth) / 2)
         if imgui.Button("Close", imgui.ImVec2(btnWidth, scaled(30))) then

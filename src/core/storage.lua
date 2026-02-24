@@ -30,7 +30,7 @@ function M.loadData()
             file:close()
             local data, _, err = json.decode(content)
             if data then
-                -- copy to maintain table reference
+                -- Copy to maintain table reference across modules
                 for k in pairs(M.smsData) do M.smsData[k] = nil end
                 for k, v in pairs(data) do M.smsData[k] = v end
             end

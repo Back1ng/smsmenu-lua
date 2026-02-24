@@ -18,7 +18,7 @@ function ContactService.deleteContact(phone)
     if serverKey and ContactService.smsData.servers[serverKey] then
         local contact = ContactService.smsData.servers[serverKey].contacts[phone]
         if contact then
-            -- Remove from cache before deleting from storage
+
             ContactService.removeContactFromCache(serverKey, contact.name, phone)
         end
         
@@ -30,7 +30,7 @@ function ContactService.deleteContact(phone)
     end
 end
 
--- Mark all messages from a contact as read
+
 function ContactService.markContactAsRead(phone)
     local serverKey = ContactService.getCurrentServerKey()
     if serverKey and ContactService.smsData.servers[serverKey] and ContactService.smsData.servers[serverKey].contacts[phone] then
@@ -47,7 +47,7 @@ end
 function ContactService.getOrCreateContact(serverKey, nickname, phoneNumber)
     local server = ContactService.getOrCreateServer(serverKey)
     
-    -- O(1) cache lookup for existing contact by nickname
+
     local existingPhone = ContactService.findPhoneByName(serverKey, nickname)
     
     if existingPhone then
@@ -55,12 +55,12 @@ function ContactService.getOrCreateContact(serverKey, nickname, phoneNumber)
         if contact then
             -- Update phone number if it changed
             if existingPhone ~= phoneNumber then
-                -- Migrate contact to new number
+
                 server.contacts[phoneNumber] = contact
                 server.contacts[existingPhone] = nil
                 contact.phone = phoneNumber
                 
-                -- Update cache: remove old mapping, add new mapping
+
                 ContactService.updateContactCache(serverKey, nickname, nickname, existingPhone, phoneNumber)
                 
                 ContactService.saveData()
@@ -69,7 +69,7 @@ function ContactService.getOrCreateContact(serverKey, nickname, phoneNumber)
         end
     end
     
-    -- Create new contact
+
     if not server.contacts[phoneNumber] then
         server.contacts[phoneNumber] = {
             name = nickname,
@@ -80,7 +80,7 @@ function ContactService.getOrCreateContact(serverKey, nickname, phoneNumber)
             unreadCount = 0
         }
         
-        -- Add to cache
+
         ContactService.updateContactCache(serverKey, nil, nickname, nil, phoneNumber)
         
         ContactService.saveData()

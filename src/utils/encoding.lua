@@ -5,10 +5,10 @@ local CP1251 = encoding.CP1251
 
 local M = {}
 
--- UTF-8 → CP1251 для SAMP (как в sms_spam.lua); строки в скрипте в UTF-8, в ImGui передаём как есть
+-- SAMP expects CP1251; script strings are UTF-8, ImGui renders UTF-8 as-is
 M.utf8_str = setmetatable({}, {__call = function(_, str) return CP1251:encode(str, 'UTF-8') end})
 
--- CP1251 → UTF-8 для отображения в ImGui (сообщения из игры в CP1251)
+-- Game messages arrive as CP1251; convert to UTF-8 for ImGui rendering
 M.cp1251_to_utf8 = function(str)
     return UTF8:encode(str, 'CP1251')
 end

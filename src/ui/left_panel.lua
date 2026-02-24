@@ -131,11 +131,10 @@ local function drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos,
 end
 
 local function drawHeader(panelWidth)
-    -- Header with icon/title and new message button
     imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(15)))
     imgui.TextColored(CONFIG.colors.textDark, "SMS Messenger")
     
-    -- Theme toggle button
+
     local btnSize = imgui.ImVec2(scaled(28), scaled(28))
     local themeIcon = CONFIG.currentTheme == "light" and "D" or "L"
     local themeBtnX = panelWidth - scaled(113)
@@ -165,7 +164,7 @@ local function drawHeader(panelWidth)
         imgui.OpenPopup("Settings")
     end
     
-    -- New Message button
+
     local newMsgBtnX = panelWidth - scaled(43)
     imgui.SetCursorPos(imgui.ImVec2(newMsgBtnX, scaled(11)))
     if helpers.drawStyledButton(imgui, "+##newmsg", btnSize, {
@@ -180,12 +179,12 @@ local function drawHeader(panelWidth)
         imgui.OpenPopup("New Contact")
     end
     
-    -- Search bar
+
     local searchHeight = scaled(28)
     imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(44)))
     imgui.PushItemWidth(panelWidth - scaled(30))
     
-    -- Устанавливаем высоту и скругление инпута поиска через прямое изменение стиля
+    -- Match search input height/rounding to header button style
     local fontSize = imgui.GetFontSize()
     local framePaddingY = math.max(4, (searchHeight - fontSize) / 2)
     local style = imgui.GetStyle()
@@ -198,7 +197,7 @@ local function drawHeader(panelWidth)
         state.filteredContacts = filterContacts(ffi.string(state.searchText))
     end
     
-    -- Восстанавливаем стиль
+
     style.FramePadding = imgui.ImVec2(oldFramePadding[1], oldFramePadding[2])
     style.FrameRounding = oldFrameRounding
     imgui.PopItemWidth()
@@ -215,14 +214,14 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
     local itemSlideOffset = (1.0 - easeOutBack(itemAnimProgress)) * 30  -- slide from left
     local itemAlpha = easeOutCubic(itemAnimProgress)
     
-    -- Check hover for animation
+
     local itemMin = imgui.ImVec2(windowPos.x, itemPos.y)
     local itemMax = imgui.ImVec2(windowPos.x + panelWidth, itemPos.y + itemHeight)
     local mousePos = imgui.GetMousePos()
     local isHovered = (mousePos.x >= itemMin.x and mousePos.x <= itemMax.x and 
                       mousePos.y >= itemMin.y and mousePos.y <= itemMax.y)
     
-    -- Update hover animation state
+
     if not state.contactHover then state.contactHover = {} end
     if not state.contactHover[i] then state.contactHover[i] = 0 end
     
@@ -232,7 +231,7 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
         state.contactHover[i] = math.max(state.contactHover[i] - CONFIG.CONSTANTS.ANIMATION.HOVER_SPEED, 0.0)
     end
     
-    -- Selection background with hover animation
+
     if isSelected then
         drawList:AddRectFilled(
             itemMin,
@@ -240,7 +239,7 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
             imgui.ColorConvertFloat4ToU32(CONFIG.colors.selected)
         )
     elseif state.contactHover[i] > 0 then
-        -- Animated hover background
+
         local hoverColor = imgui.ImVec4(
             CONFIG.colors.selected.x,
             CONFIG.colors.selected.y,
@@ -256,7 +255,7 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
     
     local slideX = itemSlideOffset
     
-    -- Avatar
+
     local avatarPos = imgui.ImVec2(itemPos.x + scaled(12) + slideX, itemPos.y + scaled(8))
     local contactNameRaw = tostring(contact.name or "?")
     local contactName = cp1251_to_utf8(contactNameRaw)
@@ -305,7 +304,7 @@ M.drawLeftPanel = function()
     local windowPos = imgui.GetWindowPos()
     local windowSize = imgui.GetWindowSize()
     
-    -- Responsive breakpoint
+
     local isMobile = windowSize.x < CONFIG.CONSTANTS.UI.MOBILE_BREAKPOINT
     
     -- In mobile mode, don't draw left panel if a contact is selected
@@ -314,7 +313,7 @@ M.drawLeftPanel = function()
     -- Panel width: full width in mobile, fixed in desktop
     local panelWidth = isMobile and windowSize.x or scaled(CONFIG.leftPanelWidth)
     
-    -- Left panel background
+
     drawList:AddRectFilled(
         windowPos,
         imgui.ImVec2(windowPos.x + panelWidth, windowPos.y + windowSize.y),
@@ -333,7 +332,7 @@ M.drawLeftPanel = function()
         1.0
     )
     
-    -- Contacts list
+
     imgui.SetCursorPos(imgui.ImVec2(0, scaled(80)))
     
     helpers.withStyle(imgui, {

@@ -62,10 +62,6 @@ end
 M.drawRightPanel = function()
     if not CONFIG.colors then return end
     
-    -- Use TextMetrics module for character width metrics and text measurement
-    -- Module is defined at end of file for Feature Envy refactoring
-    -- Cached font scale multiplier for O(1) access
-    -- Must be declared BEFORE any functions or code blocks that use it
     local fontScaleMultiplier = CONFIG.fontScale or 1.0
     
     local style = imgui.GetStyle()
@@ -73,28 +69,26 @@ M.drawRightPanel = function()
     local windowPos = imgui.GetWindowPos()
     local windowSize = imgui.GetWindowSize()
     
-    -- Responsive breakpoint
+
     local isMobile = windowSize.x < CONFIG.CONSTANTS.UI.MOBILE_BREAKPOINT
     
-    -- Determine panel dimensions based on mode and whether a contact is selected
     local hasContact = state.selectedContact ~= nil
     local rightPanelX = isMobile and 0 or scaled(CONFIG.leftPanelWidth)
     local rightPanelWidth = isMobile and windowSize.x or (windowSize.x - scaled(CONFIG.leftPanelWidth))
     
-    -- In mobile mode: hide if no contact selected (left panel shows instead)
-    -- In desktop mode: always show, show empty state if no contact
+
     if isMobile and not hasContact then
         return
     end
     
     if not isMobile and not hasContact then
-        -- Desktop empty state
+
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth / 2 - scaled(100), windowSize.y / 2 - scaled(50)))
         imgui.TextColored(CONFIG.colors.textGray, "Select a contact to start messaging")
         return
     end
     
-    -- Header
+
     local serverKey = getCurrentServerKey()
     local contact = nil
     if serverKey and smsData.servers[serverKey] then
@@ -102,21 +96,21 @@ M.drawRightPanel = function()
     end
     
     if contact then
-        -- Right panel background (white)
+
         drawList:AddRectFilled(
             imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y),
             imgui.ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y),
             imgui.ColorConvertFloat4ToU32(CONFIG.colors.background)
         )
         
-        -- Header background
+
         drawList:AddRectFilled(
             imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y),
             imgui.ImVec2(windowPos.x + windowSize.x, windowPos.y + scaled(CONFIG.headerHeight)),
             imgui.ColorConvertFloat4ToU32(CONFIG.colors.background)
         )
         
-        -- Back button "<" (top left) - only in mobile mode
+
         if isMobile then
             imgui.SetCursorPos(imgui.ImVec2(scaled(12), scaled(12)))
             if helpers.drawStyledButton(imgui, "<##back", imgui.ImVec2(scaled(32), scaled(26)), {
@@ -130,7 +124,7 @@ M.drawRightPanel = function()
             end
         end
         
-        -- Avatar (positioned after back button in mobile, at left edge in desktop)
+
         local avatarX = isMobile and scaled(55) or (rightPanelX + scaled(15))
         local avatarPos = imgui.ImVec2(windowPos.x + avatarX, windowPos.y + scaled(10))
         drawList:AddCircleFilled(
@@ -149,28 +143,28 @@ M.drawRightPanel = function()
             initial
         )
         
-        -- Online status indicator in chat header
+
         local isOnline = isContactOnline(contact.name)
         local statusColor = isOnline and 
-            imgui.ColorConvertFloat4ToU32(imgui.ImVec4(0.3, 0.85, 0.39, 1.0)) or  -- green (online)
-            imgui.ColorConvertFloat4ToU32(imgui.ImVec4(0.56, 0.56, 0.58, 1.0))     -- gray (offline)
+            imgui.ColorConvertFloat4ToU32(imgui.ImVec4(0.3, 0.85, 0.39, 1.0)) or
+            imgui.ColorConvertFloat4ToU32(imgui.ImVec4(0.56, 0.56, 0.58, 1.0))
         local statusPos = imgui.ImVec2(avatarPos.x + scaled(24), avatarPos.y + scaled(24))
         drawList:AddCircleFilled(statusPos, scaled(5), statusColor)
-        drawList:AddCircle(statusPos, scaled(5), imgui.ColorConvertFloat4ToU32(imgui.ImVec4(1, 1, 1, 1)), 12, scaled(2))  -- white border
+        drawList:AddCircle(statusPos, scaled(5), imgui.ColorConvertFloat4ToU32(imgui.ImVec4(1, 1, 1, 1)), 12, scaled(2))
         
-        -- Name and number
+
         local nameX = isMobile and scaled(95) or (rightPanelX + scaled(55))
         imgui.SetCursorPos(imgui.ImVec2(nameX, scaled(12)))
         imgui.TextColored(CONFIG.colors.textDark, contactName)
         imgui.SetCursorPos(imgui.ImVec2(nameX, scaled(30)))
-        -- Show phone and online status
+
         local onlineStatus = isContactOnline(contact.name) and "online" or "offline"
         local statusColor = isContactOnline(contact.name) and 
             imgui.ImVec4(0.3, 0.8, 0.4, 1.0) or 
             CONFIG.colors.textGray
         imgui.TextColored(statusColor, tostring(contact.phone or "") .. " | " .. onlineStatus)
         
-        -- Call button - leftmost of the action buttons
+
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(180), scaled(12)))
         if helpers.drawStyledButton(imgui, "Call##callcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
             button = imgui.ImVec4(0.2, 0.7, 0.3, 1.0),
@@ -178,13 +172,13 @@ M.drawRightPanel = function()
             active = imgui.ImVec4(0.15, 0.6, 0.25, 1.0),
             text = imgui.ImVec4(1, 1, 1, 1)
         }) then
-            -- Make a call
+
             if contact.phone then
                 sampSendChat("/c " .. contact.phone)
             end
         end
         
-        -- Edit button - middle of the action buttons
+
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(135), scaled(12)))
         if helpers.drawStyledButton(imgui, "Edit##editcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
             button = imgui.ImVec4(0.9, 0.9, 0.9, 1.0),
@@ -192,14 +186,14 @@ M.drawRightPanel = function()
             active = CONFIG.colors.primaryHover,
             text = imgui.ImVec4(0.3, 0.3, 0.3, 1.0)
         }) then
-            -- Pre-fill edit fields with current values
+
             state.editContactPhone = imgui.new.char[32](contact.phone or "")
             state.editContactName = imgui.new.char[64](contact.name or "")
             state.showEditContactDialog = true
             imgui.OpenPopup("Edit Contact")
         end
         
-        -- Delete button - rightmost of the action buttons, left of close button
+
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(90), scaled(12)))
         if helpers.drawStyledButton(imgui, "Del##deletecontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
             button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
@@ -207,14 +201,14 @@ M.drawRightPanel = function()
             active = imgui.ImVec4(0.8, 0.2, 0.2, 1.0),
             text = imgui.ImVec4(1, 1, 1, 1)
         }) then
-            -- Show confirmation dialog
+
             state.deleteContactName = contact.name or ""
             state.deleteContactPhone = contact.phone or ""
             state.showDeleteConfirmDialog = true
             imgui.OpenPopup("Confirm Delete")
         end
         
-        -- Separator
+
         drawList:AddLine(
             imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y + scaled(CONFIG.headerHeight)),
             imgui.ImVec2(windowPos.x + windowSize.x, windowPos.y + scaled(CONFIG.headerHeight)),
@@ -222,7 +216,7 @@ M.drawRightPanel = function()
             1.0
         )
         
-        -- Left panel border line (only in desktop mode)
+
         if not isMobile then
             drawList:AddLine(
                 imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y),
@@ -232,7 +226,7 @@ M.drawRightPanel = function()
             )
         end
         
-        -- Set clip rect to prevent messages from drawing over header
+        -- Clip to prevent messages from rendering over header area
         local messagesYStart = windowPos.y + scaled(CONFIG.headerHeight)
         local messagesYEnd = windowPos.y + windowSize.y - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         imgui.PushClipRect(
@@ -241,7 +235,7 @@ M.drawRightPanel = function()
             true
         )
         
-        -- Messages area - positioned to end above input area
+
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX, scaled(CONFIG.headerHeight)))
         local messagesHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         
@@ -253,40 +247,37 @@ M.drawRightPanel = function()
         }, nil, function()
             imgui.BeginChild("MessagesArea", imgui.ImVec2(rightPanelWidth, messagesHeight), false)
             
-            -- Get draw list for the child window (for proper scrolling)
+
             local childDrawList = imgui.GetWindowDrawList()
         
         local messages = contact.messages or {}
         
-        -- Calculate total height of all messages first
-        local totalMessagesHeight = scaled(10)  -- initial padding
+        local totalMessagesHeight = scaled(10)
         local messageSizes = {}
         
-        -- Use module-level TextMetrics for O(1) text wrapping estimation
+
         for i, msg in ipairs(messages) do
             if type(msg) == "table" then
                 local msgText = msg.text or ""
-                -- Convert to UTF-8 for size calculation (imgui uses UTF-8)
+
                 local utf8Text = cp1251_to_utf8(msgText)
-                -- Calculate text size with word wrap estimation
+
                 local singleLineSize = imgui.CalcTextSize(utf8Text)
                 local bubbleWidth = math.min(singleLineSize.x + scaled(30), rightPanelWidth * 0.7)
                 local availableTextWidth = bubbleWidth - scaled(30)
                 
-                -- Estimate lines using word wrap logic
-                -- Use actual text width for accurate single-line detection
                 local lines, lineHeight
                 if singleLineSize.x <= availableTextWidth then
-                    -- Text fits in one line, no estimation needed
+
                     lines = 1
                     lineHeight = TextMetrics.CHAR_WIDTHS.LINE_HEIGHT * fontScaleMultiplier
                 else
                     lines, lineHeight = TextMetrics.estimateLines(utf8Text, availableTextWidth, fontScaleMultiplier)
                 end
-                -- Adjusted padding: more top, less bottom
+
                 local bubbleHeight = (lineHeight * lines) + scaled(3)
                 
-                -- Ensure minimum bubble size for visibility
+
                 if bubbleWidth < scaled(50) then bubbleWidth = scaled(50) end
                 if bubbleHeight < scaled(25) then bubbleHeight = scaled(25) end
                 
@@ -297,7 +288,7 @@ M.drawRightPanel = function()
             end
         end
         
-        -- Add top padding to push messages to bottom if they don't fill the area
+        -- Push messages to bottom when they don't fill the viewport
         local messagesAreaHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         local topPadding = messagesAreaHeight - totalMessagesHeight
         if topPadding > 0 then
@@ -312,39 +303,39 @@ M.drawRightPanel = function()
                 
                 local msgText = messageSizes[i].utf8Text
                 
-                -- Use pre-calculated sizes
+
                 local bubbleWidth = messageSizes[i].bubbleWidth
                 local bubbleHeight = messageSizes[i].bubbleHeight
                 local textSize = messageSizes[i].textSize
                 
                 local bubbleX = isOutgoing and (rightPanelWidth - bubbleWidth - scaled(15)) or scaled(15)
                 
-                -- Get current cursor screen position (inside child window, includes scroll)
+
                 local cursorScreenPos = imgui.GetCursorScreenPos()
                 local cursorPosY = imgui.GetCursorPosY()
                 
-                -- Draw bubble
+
                 drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics)
                 
-                -- Draw time
+
                 local timeStr = tostring(os.date("%H:%M", tonumber(msg.timestamp) or 0) or "")
                 drawMessageTime(imgui, timeStr, bubbleX, bubbleWidth, bubbleHeight, cursorPosY, isOutgoing, scaled, CONFIG)
                 
-                -- Move cursor down for next message
+
                 imgui.SetCursorPosY(cursorPosY + bubbleHeight + scaled(12))
             end
         end
         
-        -- Scroll to bottom on new message or when opening chat
+
         local scrollMax = imgui.GetScrollMaxY()
         
-        -- Track if scrollMax increased (new message was rendered)
+        -- Auto-scroll: detect new content or honor forced scroll request
         if state.lastScrollMax and scrollMax > state.lastScrollMax then
-            -- New content was added, scroll to bottom
+
             imgui.SetScrollY(scrollMax)
             state.scrollToBottom = false
         elseif state.scrollToBottom then
-            -- Forced scroll request
+
             imgui.SetScrollY(scrollMax)
             if scrollMax > 0 then
                 state.scrollToBottom = false
@@ -356,7 +347,7 @@ M.drawRightPanel = function()
         end)
         imgui.PopClipRect()
         
-        -- Input area separator
+
         drawList:AddLine(
             imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y + windowSize.y - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)),
             imgui.ImVec2(windowPos.x + windowSize.x, windowPos.y + windowSize.y - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)),
@@ -364,13 +355,13 @@ M.drawRightPanel = function()
             1.0
         )
         
-        -- Input area - positioned at the bottom, aligned with Send button
+
         local sendBtnHeight = scaled(28)
         local inputAreaHeight = scaled(CONFIG.inputHeight - 20) + scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         local inputY = windowSize.y - inputAreaHeight + (inputAreaHeight - sendBtnHeight) / 2
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + scaled(10), inputY))
         
-        -- Устанавливаем высоту и скругление инпута совпадающую с кнопкой SEND
+        -- Match input frame to Send button height
         local fontSize = imgui.GetFontSize()
         local framePaddingY = math.max(4, (sendBtnHeight - fontSize) / 2)
         local msgStyle = imgui.GetStyle()
@@ -383,23 +374,23 @@ M.drawRightPanel = function()
         local enterPressed = imgui.InputText("##message", state.messageText, 512, imgui.InputTextFlags.EnterReturnsTrue)
         
         imgui.PopItemWidth()
-        -- Восстанавливаем стиль
+
         msgStyle.FramePadding = imgui.ImVec2(oldMsgFramePadding[1], oldMsgFramePadding[2])
         msgStyle.FrameRounding = oldMsgFrameRounding
         
         if enterPressed then
             local message = ffi.string(state.messageText)
             if message:gsub("%s+", "") ~= "" then
-                -- Send SMS command via MessageService module
+
                 MessageService.send(contact.phone, message)
-                -- Clear input
+
                 state.messageText = imgui.new.char[512]("")
-                -- Set focus back to input field
+
                 imgui.SetKeyboardFocusHere(-1)
             end
         end
         
-        -- Send button (larger, aligned with input field)
+
         imgui.SameLine()
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(85), inputY))
         
@@ -413,10 +404,10 @@ M.drawRightPanel = function()
         }) then
             local message = ffi.string(state.messageText)
             if message:gsub("%s+", "") ~= "" then
-                -- Send SMS command via MessageService module
+
                 MessageService.send(contact.phone, message)
                 state.messageText = imgui.new.char[512]("")
-                -- Set focus back to input field
+
                 imgui.SetKeyboardFocusHere(-1)
             end
         end

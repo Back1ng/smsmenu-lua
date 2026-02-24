@@ -48,7 +48,7 @@ local CONFIG = {
     }
 }
 
--- Get scaled dimension based on current font scale
+-- Scale UI dimensions proportionally to user-chosen font scale
 local function scaled(value)
     return math.floor(value * CONFIG.fontScale)
 end

@@ -29,7 +29,7 @@ function M.init(deps)
 end
 
 function M.setup()
-    -- Register imgui frame handler
+
     imgui.OnFrame(function() return state and state.windowOpen[0] end, function()
         imgui.SetNextWindowSize(imgui.ImVec2(scaled(CONFIG.windowWidth), scaled(CONFIG.windowHeight)), imgui.Cond.FirstUseEver)
         imgui.SetNextWindowPos(imgui.ImVec2(200, 100), imgui.Cond.FirstUseEver)
@@ -40,17 +40,17 @@ function M.setup()
                       imgui.WindowFlags.NoTitleBar
         
         if imgui.Begin("SMS Menu##main", state.windowOpen, flags) then
-            -- Apply font scale
+
             imgui.SetWindowFontScale(CONFIG.fontScale)
             
-            -- Update contacts list when window opens
+
             local serverKey = getCurrentServerKey()
             if serverKey then
                 state.currentServer = serverKey
                 state.contacts = getContactsList(serverKey)
             end
             
-            -- Only draw panels if colors are initialized
+
             if CONFIG.colors then
                 drawLeftPanel()
                 drawRightPanel()
@@ -60,7 +60,7 @@ function M.setup()
                 drawSettingsDialog()
             end
             
-            -- Custom close button (top right) - drawn LAST to be on top, aligned with Edit button
+            -- Drawn last so it renders on top of all panels
             local winPos = imgui.GetWindowPos()
             local winSize = imgui.GetWindowSize()
             imgui.SetCursorPos(imgui.ImVec2(winSize.x - scaled(40), scaled(12)))
@@ -74,7 +74,7 @@ function M.setup()
             imgui.PopStyleColor(4)
         end
         
-        -- Reset font scale to default
+
         imgui.SetWindowFontScale(1.0)
         
         imgui.End()

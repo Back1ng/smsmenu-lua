@@ -16,13 +16,12 @@ local MessageService = {
         local phoneStr = tostring(phone)
         local messageStr = tostring(message)
         
-        -- Validate message is not empty after trimming whitespace
+
         if messageStr:gsub("%s+", "") == "" then
             return false
         end
         
-        -- Send SMS command (convert UTF-8 to CP1251 for game chat)
-        -- sampSendChat is a global function available in the Moonloader environment
+        -- Convert UTF-8 to CP1251 because SAMP chat expects CP1251 encoding
         sampSendChat(encoding.utf8_str("/sms " .. phoneStr .. " " .. messageStr))
         
         return true

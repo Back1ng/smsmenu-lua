@@ -20,7 +20,7 @@ function MessageQueue.processMessageQueue()
         local text = msgData.text
         local isOutgoing = msgData.isOutgoing
         
-        -- Get or create contact
+
         local contact, currentNumber = deps.ContactService.getOrCreateContact(serverKey, nickname, phoneNumber)
         
         local message = {
@@ -35,12 +35,12 @@ function MessageQueue.processMessageQueue()
         contact.lastMessage = text
         contact.lastTimestamp = message.timestamp
         
-        -- Increment unread count for incoming messages
+        -- Incoming messages start unread
         if not isOutgoing then
             contact.unreadCount = (contact.unreadCount or 0) + 1
         end
         
-        -- Limit message history per contact
+        -- Prevent unbounded growth
         if #contact.messages > deps.CONFIG.CONSTANTS.LIMITS.MAX_MESSAGES_PER_CONTACT then
             table.remove(contact.messages, 1)
         end
@@ -65,7 +65,7 @@ function MessageQueue.queueMessage(serverKey, nickname, phoneNumber, text, isOut
     })
     deps.core_storage.pendingSave = true
     
-    -- Process immediately if possible
+
     MessageQueue.processMessageQueue()
     
     return phoneNumber
@@ -75,7 +75,7 @@ function MessageQueue.addMessage(serverKey, nickname, phoneNumber, text, isOutgo
     -- Use queue-based processing to prevent race conditions
     local currentNumber = MessageQueue.queueMessage(serverKey, nickname, phoneNumber, text, isOutgoing)
     
-    -- Trigger UI updates
+
     if deps.state then
         deps.state.scrollToBottom = true
         deps.state.newMessageAnim = 1.0
