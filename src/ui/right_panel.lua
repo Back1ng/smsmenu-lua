@@ -11,7 +11,6 @@ local cp1251_to_utf8 = nil
 local isContactOnline = nil
 local sampSendChat = nil
 local MessageService = nil
-local MessageService = nil
 local ffi = nil
 local helpers = nil
 
