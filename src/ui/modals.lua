@@ -17,6 +17,7 @@ local smsData = nil
 local saveSettings = nil
 local ALERT_SOUNDS = nil
 local playAlertSound = nil
+local helpers = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -34,8 +35,7 @@ function M.init(deps)
     filterContacts = deps.filterContacts
     smsData = deps.smsData
     saveSettings = deps.saveSettings
-    ALERT_SOUNDS = deps.ALERT_SOUNDS
-    playAlertSound = deps.playAlertSound
+    helpers = deps.helpers
 end
 
 -- New Contact Dialog
@@ -43,14 +43,7 @@ M.drawNewContactDialog = function()
     if not state.showNewContactDialog then return end
     
     -- Center the dialog on screen
-    local displaySize = imgui.GetIO().DisplaySize
-    local windowSize = imgui.ImVec2(scaled(350), scaled(200))
-    imgui.SetNextWindowPos(
-        imgui.ImVec2((displaySize.x - windowSize.x) / 2, (displaySize.y - windowSize.y) / 2),
-        imgui.Cond.Always,
-        imgui.ImVec2(0, 0)
-    )
-    imgui.SetNextWindowSize(windowSize, imgui.Cond.Always)
+    helpers.centerDialog(imgui, scaled, 350, 200)
     
     if imgui.BeginPopupModal("New Contact", nil, imgui.WindowFlags.AlwaysAutoResize) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
@@ -90,10 +83,10 @@ M.drawNewContactDialog = function()
         imgui.SameLine()
         imgui.SetCursorPosX(scaled(350) / 2 + scaled(10))
         
-        imgui.PushStyleColor(imgui.Col.Button, CONFIG.colors.primary)
-        imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.primaryHover)
-        local startClicked = imgui.Button("Start Chat", imgui.ImVec2(btnWidth, scaled(30)))
-        imgui.PopStyleColor(2)
+        local startClicked = helpers.drawStyledButton(imgui, "Start Chat", imgui.ImVec2(btnWidth, scaled(30)), {
+            button = CONFIG.colors.primary,
+            hovered = CONFIG.colors.primaryHover
+        })
         
         if startClicked or phoneEntered or nameEntered then
             local phone = ffi.string(state.newContactPhone):gsub("%s+", "")
@@ -150,14 +143,7 @@ M.drawDeleteConfirmDialog = function()
     if not state.showDeleteConfirmDialog then return end
     
     -- Center the dialog on screen
-    local displaySize = imgui.GetIO().DisplaySize
-    local windowSize = imgui.ImVec2(scaled(350), scaled(150))
-    imgui.SetNextWindowPos(
-        imgui.ImVec2((displaySize.x - windowSize.x) / 2, (displaySize.y - windowSize.y) / 2),
-        imgui.Cond.Always,
-        imgui.ImVec2(0, 0)
-    )
-    imgui.SetNextWindowSize(windowSize, imgui.Cond.Always)
+    helpers.centerDialog(imgui, scaled, 350, 150)
     
     if imgui.BeginPopupModal("Confirm Delete", nil, imgui.WindowFlags.AlwaysAutoResize) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
@@ -187,9 +173,10 @@ M.drawDeleteConfirmDialog = function()
         imgui.SameLine()
         imgui.SetCursorPosX(scaled(350) / 2 + scaled(10))
         
-        imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
-        imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.4, 0.4, 1.0))
-        if imgui.Button("Delete", imgui.ImVec2(btnWidth, scaled(30))) then
+        if helpers.drawStyledButton(imgui, "Delete", imgui.ImVec2(btnWidth, scaled(30)), {
+            button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
+            hovered = imgui.ImVec4(1.0, 0.4, 0.4, 1.0)
+        }) then
             -- Perform deletion
             if state.deleteContactPhone ~= "" then
                 deleteContact(state.deleteContactPhone)
@@ -206,7 +193,6 @@ M.drawDeleteConfirmDialog = function()
             state.deleteContactPhone = ""
             imgui.CloseCurrentPopup()
         end
-        imgui.PopStyleColor(2)
         
         imgui.EndPopup()
     end
@@ -217,14 +203,7 @@ M.drawEditContactDialog = function()
     if not state.showEditContactDialog then return end
     
     -- Center the dialog on screen
-    local displaySize = imgui.GetIO().DisplaySize
-    local windowSize = imgui.ImVec2(scaled(350), scaled(200))
-    imgui.SetNextWindowPos(
-        imgui.ImVec2((displaySize.x - windowSize.x) / 2, (displaySize.y - windowSize.y) / 2),
-        imgui.Cond.Always,
-        imgui.ImVec2(0, 0)
-    )
-    imgui.SetNextWindowSize(windowSize, imgui.Cond.Always)
+    helpers.centerDialog(imgui, scaled, 350, 200)
     
     if imgui.BeginPopupModal("Edit Contact", nil, imgui.WindowFlags.AlwaysAutoResize) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
@@ -264,10 +243,10 @@ M.drawEditContactDialog = function()
         imgui.SameLine()
         imgui.SetCursorPosX(scaled(350) / 2 + scaled(10))
         
-        imgui.PushStyleColor(imgui.Col.Button, CONFIG.colors.primary)
-        imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.primaryHover)
-        local saveClicked = imgui.Button("Save", imgui.ImVec2(btnWidth, scaled(30)))
-        imgui.PopStyleColor(2)
+        local saveClicked = helpers.drawStyledButton(imgui, "Save", imgui.ImVec2(btnWidth, scaled(30)), {
+            button = CONFIG.colors.primary,
+            hovered = CONFIG.colors.primaryHover
+        })
         
         if saveClicked or phoneEntered or nameEntered then
             local newPhone = ffi.string(state.editContactPhone):gsub("%s+", "")
@@ -327,14 +306,7 @@ M.drawSettingsDialog = function()
     if not state.showSettingsDialog then return end
     
     -- Center the dialog on screen
-    local displaySize = imgui.GetIO().DisplaySize
-    local windowSize = imgui.ImVec2(scaled(400), scaled(480))
-    imgui.SetNextWindowPos(
-        imgui.ImVec2((displaySize.x - windowSize.x) / 2, (displaySize.y - windowSize.y) / 2),
-        imgui.Cond.Always,
-        imgui.ImVec2(0, 0)
-    )
-    imgui.SetNextWindowSize(windowSize, imgui.Cond.Always)
+    helpers.centerDialog(imgui, scaled, 400, 480)
     
     if imgui.BeginPopupModal("Settings", nil, imgui.WindowFlags.AlwaysAutoResize) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
@@ -373,23 +345,22 @@ M.drawSettingsDialog = function()
             for i, sound in ipairs(ALERT_SOUNDS) do
                 local isSelected = (sound == CONFIG.currentSound)
                 
-                if isSelected then
-                    imgui.PushStyleColor(imgui.Col.Button, CONFIG.colors.primary)
-                    imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.primaryHover)
-                    imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
-                else
-                    imgui.PushStyleColor(imgui.Col.Button, CONFIG.colors.searchBg)
-                    imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.selected)
-                    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
-                end
+                local buttonColors = isSelected and {
+                    button = CONFIG.colors.primary,
+                    hovered = CONFIG.colors.primaryHover,
+                    text = imgui.ImVec4(1, 1, 1, 1)
+                } or {
+                    button = CONFIG.colors.searchBg,
+                    hovered = CONFIG.colors.selected,
+                    text = CONFIG.colors.textDark
+                }
                 
-                if imgui.Button(sound .. "##sound" .. i, imgui.ImVec2(scaled(200), scaled(25))) then
+                if helpers.drawStyledButton(imgui, sound .. "##sound" .. i, imgui.ImVec2(scaled(200), scaled(25)), buttonColors) then
                     CONFIG.currentSound = sound
                     saveSettings()
                     -- Play preview
                     playAlertSound()
                 end
-                imgui.PopStyleColor(3)
                 
                 if i < #ALERT_SOUNDS then
                     imgui.Spacing()
@@ -399,13 +370,13 @@ M.drawSettingsDialog = function()
             imgui.Spacing()
             
             -- Test sound button
-            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.2, 0.7, 0.3, 1.0))
-            imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.2, 0.8, 0.35, 1.0))
-            imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
-            if imgui.Button("Проверить звук", imgui.ImVec2(scaled(200), scaled(30))) then
+            if helpers.drawStyledButton(imgui, "Проверить звук", imgui.ImVec2(scaled(200), scaled(30)), {
+                button = imgui.ImVec4(0.2, 0.7, 0.3, 1.0),
+                hovered = imgui.ImVec4(0.2, 0.8, 0.35, 1.0),
+                text = imgui.ImVec4(1, 1, 1, 1)
+            }) then
                 playAlertSound()
             end
-            imgui.PopStyleColor(3)
             
         else
             imgui.TextColored(CONFIG.colors.textGray, "No sounds found in smsmenu/alerts/")

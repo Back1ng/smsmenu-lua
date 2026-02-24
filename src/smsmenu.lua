@@ -35,6 +35,7 @@ local ui_modals = require "src.ui.modals"
 local ui_left_panel = require "src.ui.left_panel"
 local ui_right_panel = require "src.ui.right_panel"
 local ui_window = require "src.ui.window"
+local ui_helpers = require "src.ui.helpers"
 local function getFullPath(relativePath)
     return getWorkingDirectory() .. [[\]] .. relativePath
 end
@@ -266,7 +267,8 @@ function main()
         drawNewContactDialog = ui_modals.drawNewContactDialog,
         drawEditContactDialog = ui_modals.drawEditContactDialog,
         drawDeleteConfirmDialog = ui_modals.drawDeleteConfirmDialog,
-        drawSettingsDialog = ui_modals.drawSettingsDialog
+        drawSettingsDialog = ui_modals.drawSettingsDialog,
+        helpers = ui_helpers
     }
     ui_modals.init(uiDeps)
     ui_left_panel.init(uiDeps)

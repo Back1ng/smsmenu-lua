@@ -11,7 +11,9 @@ local cp1251_to_utf8 = nil
 local isContactOnline = nil
 local sampSendChat = nil
 local MessageService = nil
+local MessageService = nil
 local ffi = nil
+local helpers = nil
 
 function M.init(deps)
     CONFIG = deps.CONFIG
@@ -26,6 +28,36 @@ function M.init(deps)
     sampSendChat = deps.sampSendChat
     MessageService = deps.MessageService
     ffi = deps.ffi
+    helpers = deps.helpers
+end
+
+local function drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics)
+    childDrawList:AddRectFilled(
+        imgui.ImVec2(cursorScreenPos.x + bubbleX, cursorScreenPos.y),
+        imgui.ImVec2(cursorScreenPos.x + bubbleX + bubbleWidth, cursorScreenPos.y + bubbleHeight),
+        imgui.ColorConvertFloat4ToU32(bubbleColor),
+        scaled(15)
+    )
+    
+    local textOffsetY = scaled(4)
+    local indentWidth, indentChars = TextMetrics.measureLeadingIndent(msgText, fontScaleMultiplier)
+    local textStartX = bubbleX + scaled(14) + indentWidth
+    
+    imgui.SetCursorPos(imgui.ImVec2(textStartX, cursorPosY + textOffsetY))
+    imgui.PushTextWrapPos(bubbleX + bubbleWidth - scaled(14))
+    imgui.PushStyleColor(imgui.Col.Text, textColor)
+    imgui.TextUnformatted(msgText)
+    imgui.PopStyleColor()
+    imgui.PopTextWrapPos()
+end
+
+local function drawMessageTime(imgui, timeStr, bubbleX, bubbleWidth, bubbleHeight, cursorPosY, isOutgoing, scaled, CONFIG)
+    local timeSize = imgui.CalcTextSize(timeStr)
+    local timeX = isOutgoing and (bubbleX - timeSize.x - scaled(8)) or (bubbleX + bubbleWidth + scaled(8))
+    local timeY = cursorPosY + (bubbleHeight - timeSize.y) / 2
+    
+    imgui.SetCursorPos(imgui.ImVec2(timeX, timeY))
+    imgui.TextColored(CONFIG.colors.textGray, timeStr)
 end
 
 M.drawRightPanel = function()
@@ -88,15 +120,15 @@ M.drawRightPanel = function()
         -- Back button "<" (top left) - only in mobile mode
         if isMobile then
             imgui.SetCursorPos(imgui.ImVec2(scaled(12), scaled(12)))
-            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.9, 0.9, 0.9, 1.0))
-            imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.primary)
-            imgui.PushStyleColor(imgui.Col.ButtonActive, CONFIG.colors.primaryHover)
-            imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.3, 0.3, 0.3, 1.0))
-            if imgui.Button("<##back", imgui.ImVec2(scaled(32), scaled(26))) then
+            if helpers.drawStyledButton(imgui, "<##back", imgui.ImVec2(scaled(32), scaled(26)), {
+                button = imgui.ImVec4(0.9, 0.9, 0.9, 1.0),
+                hovered = CONFIG.colors.primary,
+                active = CONFIG.colors.primaryHover,
+                text = imgui.ImVec4(0.3, 0.3, 0.3, 1.0)
+            }) then
                 state.selectedContact = nil
                 state.scrollToBottom = false
             end
-            imgui.PopStyleColor(4)
         end
         
         -- Avatar (positioned after back button in mobile, at left edge in desktop)
@@ -140,47 +172,47 @@ M.drawRightPanel = function()
         
         -- Call button - leftmost of the action buttons
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(180), scaled(12)))
-        imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.2, 0.7, 0.3, 1.0))
-        imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.2, 0.8, 0.35, 1.0))
-        imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.15, 0.6, 0.25, 1.0))
-        imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
-        if imgui.Button("Call##callcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H))) then
+        if helpers.drawStyledButton(imgui, "Call##callcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
+            button = imgui.ImVec4(0.2, 0.7, 0.3, 1.0),
+            hovered = imgui.ImVec4(0.2, 0.8, 0.35, 1.0),
+            active = imgui.ImVec4(0.15, 0.6, 0.25, 1.0),
+            text = imgui.ImVec4(1, 1, 1, 1)
+        }) then
             -- Make a call
             if contact.phone then
                 sampSendChat("/c " .. contact.phone)
             end
         end
-        imgui.PopStyleColor(4)
         
         -- Edit button - middle of the action buttons
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(135), scaled(12)))
-        imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.9, 0.9, 0.9, 1.0))
-        imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.primary)
-        imgui.PushStyleColor(imgui.Col.ButtonActive, CONFIG.colors.primaryHover)
-        imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.3, 0.3, 0.3, 1.0))
-        if imgui.Button("Edit##editcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H))) then
+        if helpers.drawStyledButton(imgui, "Edit##editcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
+            button = imgui.ImVec4(0.9, 0.9, 0.9, 1.0),
+            hovered = CONFIG.colors.primary,
+            active = CONFIG.colors.primaryHover,
+            text = imgui.ImVec4(0.3, 0.3, 0.3, 1.0)
+        }) then
             -- Pre-fill edit fields with current values
             state.editContactPhone = imgui.new.char[32](contact.phone or "")
             state.editContactName = imgui.new.char[64](contact.name or "")
             state.showEditContactDialog = true
             imgui.OpenPopup("Edit Contact")
         end
-        imgui.PopStyleColor(4)
         
         -- Delete button - rightmost of the action buttons, left of close button
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(90), scaled(12)))
-        imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
-        imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.4, 0.4, 1.0))
-        imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.8, 0.2, 0.2, 1.0))
-        imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
-        if imgui.Button("Del##deletecontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H))) then
+        if helpers.drawStyledButton(imgui, "Del##deletecontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
+            button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
+            hovered = imgui.ImVec4(1.0, 0.4, 0.4, 1.0),
+            active = imgui.ImVec4(0.8, 0.2, 0.2, 1.0),
+            text = imgui.ImVec4(1, 1, 1, 1)
+        }) then
             -- Show confirmation dialog
             state.deleteContactName = contact.name or ""
             state.deleteContactPhone = contact.phone or ""
             state.showDeleteConfirmDialog = true
             imgui.OpenPopup("Confirm Delete")
         end
-        imgui.PopStyleColor(4)
         
         -- Separator
         drawList:AddLine(
@@ -213,15 +245,16 @@ M.drawRightPanel = function()
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX, scaled(CONFIG.headerHeight)))
         local messagesHeight = windowSize.y - scaled(CONFIG.headerHeight) - scaled(CONFIG.inputHeight - 20) - scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
         
-        imgui.PushStyleColor(imgui.Col.ScrollbarBg, CONFIG.colors.background)
-        imgui.PushStyleColor(imgui.Col.ScrollbarGrab, CONFIG.colors.scrollbarGrab)
-        imgui.PushStyleColor(imgui.Col.ScrollbarGrabHovered, CONFIG.colors.scrollbarGrabHovered)
-        imgui.PushStyleColor(imgui.Col.ScrollbarGrabActive, CONFIG.colors.scrollbarGrabActive)
-        
-        imgui.BeginChild("MessagesArea", imgui.ImVec2(rightPanelWidth, messagesHeight), false)
-        
-        -- Get draw list for the child window (for proper scrolling)
-        local childDrawList = imgui.GetWindowDrawList()
+        helpers.withStyle(imgui, {
+            [imgui.Col.ScrollbarBg] = CONFIG.colors.background,
+            [imgui.Col.ScrollbarGrab] = CONFIG.colors.scrollbarGrab,
+            [imgui.Col.ScrollbarGrabHovered] = CONFIG.colors.scrollbarGrabHovered,
+            [imgui.Col.ScrollbarGrabActive] = CONFIG.colors.scrollbarGrabActive
+        }, nil, function()
+            imgui.BeginChild("MessagesArea", imgui.ImVec2(rightPanelWidth, messagesHeight), false)
+            
+            -- Get draw list for the child window (for proper scrolling)
+            local childDrawList = imgui.GetWindowDrawList()
         
         local messages = contact.messages or {}
         
@@ -290,42 +323,12 @@ M.drawRightPanel = function()
                 local cursorScreenPos = imgui.GetCursorScreenPos()
                 local cursorPosY = imgui.GetCursorPosY()
                 
-                -- Draw bubble using child draw list (respects scrolling)
-                childDrawList:AddRectFilled(
-                    imgui.ImVec2(cursorScreenPos.x + bubbleX, cursorScreenPos.y),
-                    imgui.ImVec2(cursorScreenPos.x + bubbleX + bubbleWidth, cursorScreenPos.y + bubbleHeight),
-                    imgui.ColorConvertFloat4ToU32(bubbleColor),
-                    scaled(15)
-                )
-                
-                -- Draw text inside bubble using SetCursorPos + TextWrapped
-                -- Increased top offset, minimal bottom space
-                local textOffsetY = scaled(4)
-                
-                -- O(1) calculation: Measure leading indentation for preservation
-                local indentWidth, indentChars = TextMetrics.measureLeadingIndent(msgText, fontScaleMultiplier)
-                
-                -- Adjust text position to preserve visual indentation
-                local textStartX = bubbleX + scaled(14) + indentWidth
-                
-                imgui.SetCursorPos(imgui.ImVec2(textStartX, cursorPosY + textOffsetY))
-                imgui.PushTextWrapPos(bubbleX + bubbleWidth - scaled(14))
-                imgui.PushStyleColor(imgui.Col.Text, textColor)
-                imgui.TextUnformatted(msgText)
-                imgui.PopStyleColor()
-                imgui.PopTextWrapPos()
-                
-                -- Time
-                local timeStr = tostring(os.date("%H:%M", tonumber(msg.timestamp) or 0) or "")
-                local timeSize = imgui.CalcTextSize(timeStr)
-                
-                -- Calculate time position (outside bubble) - align to middle of bubble
-                local timeX = isOutgoing and (bubbleX - timeSize.x - scaled(8)) or (bubbleX + bubbleWidth + scaled(8))
-                local timeY = cursorPosY + (bubbleHeight - timeSize.y) / 2
+                -- Draw bubble
+                drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics)
                 
                 -- Draw time
-                imgui.SetCursorPos(imgui.ImVec2(timeX, timeY))
-                imgui.TextColored(CONFIG.colors.textGray, timeStr)
+                local timeStr = tostring(os.date("%H:%M", tonumber(msg.timestamp) or 0) or "")
+                drawMessageTime(imgui, timeStr, bubbleX, bubbleWidth, bubbleHeight, cursorPosY, isOutgoing, scaled, CONFIG)
                 
                 -- Move cursor down for next message
                 imgui.SetCursorPosY(cursorPosY + bubbleHeight + scaled(12))
@@ -349,8 +352,8 @@ M.drawRightPanel = function()
         end
         state.lastScrollMax = scrollMax
         
-        imgui.EndChild()
-        imgui.PopStyleColor(4)
+            imgui.EndChild()
+        end)
         imgui.PopClipRect()
         
         -- Input area separator
@@ -401,13 +404,13 @@ M.drawRightPanel = function()
         imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(85), inputY))
         
         local btnStyle = imgui.GetStyle()
-        local btnColor = btnStyle.Colors[imgui.Col.Button]
         local oldBtnRounding = btnStyle.FrameRounding
-        btnStyle.Colors[imgui.Col.Button] = CONFIG.colors.primary
-        btnStyle.Colors[imgui.Col.ButtonHovered] = CONFIG.colors.primaryHover
         btnStyle.FrameRounding = scaled(5)
         
-        if imgui.Button("Send##sendbtn", imgui.ImVec2(scaled(75), sendBtnHeight)) then
+        if helpers.drawStyledButton(imgui, "Send##sendbtn", imgui.ImVec2(scaled(75), sendBtnHeight), {
+            button = CONFIG.colors.primary,
+            hovered = CONFIG.colors.primaryHover
+        }) then
             local message = ffi.string(state.messageText)
             if message:gsub("%s+", "") ~= "" then
                 -- Send SMS command via MessageService module
@@ -419,7 +422,6 @@ M.drawRightPanel = function()
         end
         
         btnStyle.FrameRounding = oldBtnRounding
-        btnStyle.Colors[imgui.Col.Button] = btnColor
     end
 end
 

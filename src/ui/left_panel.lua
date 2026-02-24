@@ -15,6 +15,7 @@ local getCurrentServerKey = nil
 local getContactsList = nil
 local markContactAsRead = nil
 local formatTime = nil
+local helpers = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -32,6 +33,100 @@ function M.init(deps)
     getContactsList = deps.getContactsList
     markContactAsRead = deps.markContactAsRead
     formatTime = deps.formatTime
+    helpers = deps.helpers
+end
+
+local function drawContactAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
+    local primaryWithAlpha = imgui.ImVec4(
+        CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z,
+        itemAlpha
+    )
+    drawList:AddCircleFilled(
+        imgui.ImVec2(avatarPos.x + scaled(18), avatarPos.y + scaled(18)),
+        scaled(18),
+        imgui.ColorConvertFloat4ToU32(primaryWithAlpha)
+    )
+    
+    local textSize = imgui.CalcTextSize(initial)
+    local textLightWithAlpha = imgui.ImVec4(
+        CONFIG.colors.textLight.x, CONFIG.colors.textLight.y, CONFIG.colors.textLight.z,
+        itemAlpha
+    )
+    drawList:AddText(
+        imgui.ImVec2(avatarPos.x + scaled(18) - textSize.x / 2, avatarPos.y + scaled(18) - textSize.y / 2),
+        imgui.ColorConvertFloat4ToU32(textLightWithAlpha),
+        initial
+    )
+    
+    local statusBaseColor = isOnline and 
+        imgui.ImVec4(0.3, 0.85, 0.39, itemAlpha) or
+        imgui.ImVec4(0.56, 0.56, 0.58, itemAlpha)
+    local statusPos = imgui.ImVec2(avatarPos.x + scaled(28), avatarPos.y + scaled(28))
+    drawList:AddCircleFilled(statusPos, scaled(6), imgui.ColorConvertFloat4ToU32(statusBaseColor))
+    local whiteWithAlpha = imgui.ImVec4(1, 1, 1, itemAlpha)
+    drawList:AddCircle(statusPos, scaled(6), imgui.ColorConvertFloat4ToU32(whiteWithAlpha), 12, scaled(2))
+end
+
+local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i, contact, contactName, timeStr, itemAlpha, CONFIG)
+    imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(10)))
+    local nameColor = (contact.unreadCount or 0) > 0 and CONFIG.colors.primary or CONFIG.colors.textDark
+    local nameColorWithAlpha = imgui.ImVec4(nameColor.x, nameColor.y, nameColor.z, itemAlpha)
+    imgui.TextColored(nameColorWithAlpha, contactName)
+    
+    imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(30)))
+    local preview = tostring(contact.lastMessage or "No messages")
+    if #preview > 28 then
+        preview = preview:sub(1, 28) .. "..."
+    end
+    local previewColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
+    imgui.TextColored(previewColorWithAlpha, preview)
+    
+    if timeStr ~= "" then
+        local timeSize = imgui.CalcTextSize(timeStr)
+        imgui.SetCursorPos(imgui.ImVec2(panelWidth - timeSize.x - scaled(15), (i - 1) * itemHeight + scaled(10)))
+        local timeColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
+        imgui.TextColored(timeColorWithAlpha, timeStr)
+    end
+end
+
+local function drawUnreadIndicator(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
+    local dotRadius = scaled(5)
+    local dotX = panelWidth - scaled(20) - slideX
+    local dotY = itemPos.y + itemHeight / 2
+    
+    local haloColor = imgui.ColorConvertFloat4ToU32(imgui.ImVec4(
+        CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z, pulseAlpha
+    ))
+    drawList:AddCircleFilled(
+        imgui.ImVec2(windowPos.x + dotX, dotY),
+        dotRadius * pulseScale * 1.5,
+        haloColor
+    )
+    
+    local mainDotColor = imgui.ImVec4(CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z, itemAlpha)
+    drawList:AddCircleFilled(
+        imgui.ImVec2(windowPos.x + dotX, dotY),
+        dotRadius,
+        imgui.ColorConvertFloat4ToU32(mainDotColor)
+    )
+    
+    local whiteWithAlpha = imgui.ImVec4(1, 1, 1, itemAlpha)
+    drawList:AddCircle(
+        imgui.ImVec2(windowPos.x + dotX, dotY),
+        dotRadius,
+        imgui.ColorConvertFloat4ToU32(whiteWithAlpha),
+        12, scaled(1.5)
+    )
+    
+    if unreadCount > 1 then
+        local countStr = tostring(unreadCount)
+        local countSize = imgui.CalcTextSize(countStr)
+        drawList:AddText(
+            imgui.ImVec2(windowPos.x + dotX - countSize.x / 2, dotY + dotRadius + scaled(2)),
+            imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary),
+            countStr
+        )
+    end
 end
 
 M.drawLeftPanel = function()
@@ -65,49 +160,47 @@ M.drawLeftPanel = function()
     -- Theme toggle button
     local btnSize = imgui.ImVec2(scaled(28), scaled(28))
     local themeIcon = CONFIG.currentTheme == "light" and "D" or "L"
-    -- Position: leftmost of the three buttons
     local themeBtnX = panelWidth - scaled(113)
     imgui.SetCursorPos(imgui.ImVec2(themeBtnX, scaled(11)))
-    imgui.PushStyleColor(imgui.Col.Button, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.selected)
-    imgui.PushStyleColor(imgui.Col.ButtonActive, CONFIG.colors.border)
-    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
-    if imgui.Button(themeIcon .. "##theme", btnSize) then
+    
+    if helpers.drawStyledButton(imgui, themeIcon .. "##theme", btnSize, {
+        button = CONFIG.colors.searchBg,
+        hovered = CONFIG.colors.selected,
+        active = CONFIG.colors.border,
+        text = CONFIG.colors.textDark
+    }) then
         local newTheme = CONFIG.currentTheme == "light" and "dark" or "light"
         applyTheme(newTheme)
     end
-    imgui.PopStyleColor(4)
     
-    -- Settings button (sound icon)
-    -- Position: middle of the three buttons
+    -- Settings button
     local settingsBtnX = panelWidth - scaled(78)
     imgui.SetCursorPos(imgui.ImVec2(settingsBtnX, scaled(11)))
-    imgui.PushStyleColor(imgui.Col.Button, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.selected)
-    imgui.PushStyleColor(imgui.Col.ButtonActive, CONFIG.colors.border)
-    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
     local soundIcon = CONFIG.soundEnabled and "S" or "M"
-    if imgui.Button(soundIcon .. "##settings", btnSize) then
+    if helpers.drawStyledButton(imgui, soundIcon .. "##settings", btnSize, {
+        button = CONFIG.colors.searchBg,
+        hovered = CONFIG.colors.selected,
+        active = CONFIG.colors.border,
+        text = CONFIG.colors.textDark
+    }) then
         state.showSettingsDialog = true
         imgui.OpenPopup("Settings")
     end
-    imgui.PopStyleColor(4)
     
-    -- New Message button (+ icon)
-    -- Position: rightmost of the three buttons
+    -- New Message button
     local newMsgBtnX = panelWidth - scaled(43)
     imgui.SetCursorPos(imgui.ImVec2(newMsgBtnX, scaled(11)))
-    imgui.PushStyleColor(imgui.Col.Button, CONFIG.colors.primary)
-    imgui.PushStyleColor(imgui.Col.ButtonHovered, CONFIG.colors.primaryHover)
-    imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.0, 0.4, 0.85, 1.0))
-    imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
-    if imgui.Button("+##newmsg", btnSize) then
+    if helpers.drawStyledButton(imgui, "+##newmsg", btnSize, {
+        button = CONFIG.colors.primary,
+        hovered = CONFIG.colors.primaryHover,
+        active = imgui.ImVec4(0.0, 0.4, 0.85, 1.0),
+        text = imgui.ImVec4(1, 1, 1, 1)
+    }) then
         state.showNewContactDialog = true
         state.newContactPhone[0] = 0
         state.newContactName[0] = 0
         imgui.OpenPopup("New Contact")
     end
-    imgui.PopStyleColor(4)
     
     -- Search bar
     local searchHeight = scaled(28)
@@ -145,19 +238,20 @@ M.drawLeftPanel = function()
     -- Contacts list
     imgui.SetCursorPos(imgui.ImVec2(0, scaled(80)))
     
-    imgui.PushStyleColor(imgui.Col.ScrollbarBg, CONFIG.colors.leftPanel)
-    imgui.PushStyleColor(imgui.Col.ScrollbarGrab, CONFIG.colors.scrollbarGrab)
-    imgui.PushStyleColor(imgui.Col.ScrollbarGrabHovered, CONFIG.colors.scrollbarGrabHovered)
-    imgui.PushStyleColor(imgui.Col.ScrollbarGrabActive, CONFIG.colors.scrollbarGrabActive)
-    
-    imgui.BeginChild("ContactsList", imgui.ImVec2(panelWidth, windowSize.y - scaled(105)), false)
-    
-    local drawList = imgui.GetWindowDrawList()
-    
-    local contactsToShow = state.filteredContacts
-    if #contactsToShow == 0 then
-        contactsToShow = state.contacts
-    end
+    helpers.withStyle(imgui, {
+        [imgui.Col.ScrollbarBg] = CONFIG.colors.leftPanel,
+        [imgui.Col.ScrollbarGrab] = CONFIG.colors.scrollbarGrab,
+        [imgui.Col.ScrollbarGrabHovered] = CONFIG.colors.scrollbarGrabHovered,
+        [imgui.Col.ScrollbarGrabActive] = CONFIG.colors.scrollbarGrabActive
+    }, nil, function()
+        imgui.BeginChild("ContactsList", imgui.ImVec2(panelWidth, windowSize.y - scaled(105)), false)
+        
+        local drawList = imgui.GetWindowDrawList()
+        
+        local contactsToShow = state.filteredContacts
+        if #contactsToShow == 0 then
+            contactsToShow = state.contacts
+        end
     
     -- Animation offset for slide-in effect
     local contactAnimOffset = 0
@@ -215,125 +309,27 @@ M.drawLeftPanel = function()
             )
         end
         
-        -- Apply slide animation to positions
         local slideX = itemSlideOffset
         
-        -- Avatar circle with animation
+        -- Avatar
         local avatarPos = imgui.ImVec2(itemPos.x + scaled(12) + slideX, itemPos.y + scaled(8))
-        local avatarAlpha = itemAlpha
-        
-        local primaryWithAlpha = imgui.ImVec4(
-            CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z,
-            avatarAlpha
-        )
-        drawList:AddCircleFilled(
-            imgui.ImVec2(avatarPos.x + scaled(18), avatarPos.y + scaled(18)),
-            scaled(18),
-            imgui.ColorConvertFloat4ToU32(primaryWithAlpha)
-        )
-        
-        -- Initial letter with animation
         local contactName = cp1251_to_utf8(tostring(contact.name or "?"))
         local initial = contactName:sub(1, 1):upper()
-        local textSize = imgui.CalcTextSize(initial)
-        local textLightWithAlpha = imgui.ImVec4(
-            CONFIG.colors.textLight.x, CONFIG.colors.textLight.y, CONFIG.colors.textLight.z,
-            itemAlpha
-        )
-        drawList:AddText(
-            imgui.ImVec2(avatarPos.x + scaled(18) - textSize.x / 2, avatarPos.y + scaled(18) - textSize.y / 2),
-            imgui.ColorConvertFloat4ToU32(textLightWithAlpha),
-            initial
-        )
-        
-        -- Online status indicator (small circle at bottom-right of avatar) with animation
         local isOnline = isContactOnline(contact.name)
-        local statusBaseColor = isOnline and 
-            imgui.ImVec4(0.3, 0.85, 0.39, itemAlpha) or  -- green (online)
-            imgui.ImVec4(0.56, 0.56, 0.58, itemAlpha)     -- gray (offline)
-        local statusPos = imgui.ImVec2(avatarPos.x + scaled(28), avatarPos.y + scaled(28))
-        drawList:AddCircleFilled(statusPos, scaled(6), imgui.ColorConvertFloat4ToU32(statusBaseColor))
-        local whiteWithAlpha = imgui.ImVec4(1, 1, 1, itemAlpha)
-        drawList:AddCircle(statusPos, scaled(6), imgui.ColorConvertFloat4ToU32(whiteWithAlpha), 12, scaled(2))  -- white border
         
-        -- Name (brighter color if unread to indicate importance) with animation
-        imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(10)))
-        local nameColor = (contact.unreadCount or 0) > 0 and CONFIG.colors.primary or CONFIG.colors.textDark
-        local nameColorWithAlpha = imgui.ImVec4(nameColor.x, nameColor.y, nameColor.z, itemAlpha)
-        imgui.TextColored(nameColorWithAlpha, contactName)
+        drawContactAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
         
-        -- Last message preview with animation
-        imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(30)))
-        local preview = cp1251_to_utf8(tostring(contact.lastMessage or "No messages"))
-        if #preview > 28 then
-            preview = preview:sub(1, 28) .. "..."
-        end
-        local previewColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
-        imgui.TextColored(previewColorWithAlpha, preview)
-        
-        -- Time with animation
+        -- Name, Message Preview, and Time
         local timeStr = tostring(formatTime(contact.lastTimestamp) or "")
-        if timeStr ~= "" then
-            local timeSize = imgui.CalcTextSize(timeStr)
-            imgui.SetCursorPos(imgui.ImVec2(panelWidth - timeSize.x - scaled(15), (i - 1) * itemHeight + scaled(10)))
-            local timeColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
-            imgui.TextColored(timeColorWithAlpha, timeStr)
-        end
+        drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i, contact, contactName, timeStr, itemAlpha, CONFIG)
         
-        -- Unread indicator (blue dot with count) with pulse animation
+        -- Unread indicator
         local unreadCount = contact.unreadCount or 0
         if unreadCount > 0 and itemAlpha > 0.5 then
-            local dotRadius = scaled(5)
-            local dotX = panelWidth - scaled(20) - slideX  -- counter-slide for fixed position
-            local dotY = itemPos.y + itemHeight / 2
-            
-            -- Pulsing effect for unread indicator (scaled by item animation)
             local pulseScale = 1.0 + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE
             local pulseAlpha = (CONFIG.CONSTANTS.ANIMATION.PULSE_BASE_ALPHA + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE) * itemAlpha
             
-            -- Draw pulse halo
-            local haloColor = imgui.ColorConvertFloat4ToU32(imgui.ImVec4(
-                CONFIG.colors.primary.x,
-                CONFIG.colors.primary.y,
-                CONFIG.colors.primary.z,
-                pulseAlpha
-            ))
-            drawList:AddCircleFilled(
-                imgui.ImVec2(windowPos.x + dotX, dotY),
-                dotRadius * pulseScale * 1.5,
-                haloColor
-            )
-            
-            -- Draw main blue circle
-            local mainDotColor = imgui.ImVec4(
-                CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z,
-                itemAlpha
-            )
-            drawList:AddCircleFilled(
-                imgui.ImVec2(windowPos.x + dotX, dotY),
-                dotRadius,
-                imgui.ColorConvertFloat4ToU32(mainDotColor)
-            )
-            
-            -- Draw white border
-            local whiteWithAlpha = imgui.ImVec4(1, 1, 1, itemAlpha)
-            drawList:AddCircle(
-                imgui.ImVec2(windowPos.x + dotX, dotY),
-                dotRadius,
-                imgui.ColorConvertFloat4ToU32(whiteWithAlpha),
-                12, scaled(1.5)
-            )
-            
-            -- Draw count if more than 1
-            if unreadCount > 1 then
-                local countStr = tostring(unreadCount)
-                local countSize = imgui.CalcTextSize(countStr)
-                drawList:AddText(
-                    imgui.ImVec2(windowPos.x + dotX - countSize.x / 2, dotY + dotRadius + scaled(2)),
-                    imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary),
-                    countStr
-                )
-            end
+            drawUnreadIndicator(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
         end
         
         -- Click handler
@@ -355,8 +351,8 @@ M.drawLeftPanel = function()
         imgui.SetCursorPosY(i * itemHeight)
     end
     
-    imgui.EndChild()
-    imgui.PopStyleColor(4)
+        imgui.EndChild()
+    end)
 end
 
 return M
