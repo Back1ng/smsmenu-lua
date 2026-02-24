@@ -74,10 +74,11 @@ local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i,
     imgui.TextColored(nameColorWithAlpha, contactName)
     
     imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(30)))
-    local preview = tostring(contact.lastMessage or "No messages")
-    if #preview > 28 then
-        preview = preview:sub(1, 28) .. "..."
+    local previewRaw = tostring(contact.lastMessage or "No messages")
+    if #previewRaw > 28 then
+        previewRaw = previewRaw:sub(1, 28) .. "..."
     end
+    local preview = cp1251_to_utf8(previewRaw)
     local previewColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
     imgui.TextColored(previewColorWithAlpha, preview)
     
@@ -313,8 +314,9 @@ M.drawLeftPanel = function()
         
         -- Avatar
         local avatarPos = imgui.ImVec2(itemPos.x + scaled(12) + slideX, itemPos.y + scaled(8))
-        local contactName = cp1251_to_utf8(tostring(contact.name or "?"))
-        local initial = contactName:sub(1, 1):upper()
+        local contactNameRaw = tostring(contact.name or "?")
+        local contactName = cp1251_to_utf8(contactNameRaw)
+        local initial = cp1251_to_utf8(contactNameRaw:sub(1, 1)):upper()
         local isOnline = isContactOnline(contact.name)
         
         drawContactAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)

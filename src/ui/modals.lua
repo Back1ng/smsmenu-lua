@@ -35,6 +35,8 @@ function M.init(deps)
     filterContacts = deps.filterContacts
     smsData = deps.smsData
     saveSettings = deps.saveSettings
+    ALERT_SOUNDS = deps.ALERT_SOUNDS
+    playAlertSound = deps.playAlertSound
     helpers = deps.helpers
 end
 

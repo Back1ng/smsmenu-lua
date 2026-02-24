@@ -18,6 +18,9 @@ local CONFIG = {
         outgoing = "SMS: ([^|]+) | \xCF\xEE\xEB\xF3\xF7\xE0\xF2\xE5\xEB\xFC: ([^[]+) %[(.-)%.(%d+)%]"
     },
     CONSTANTS = {
+        HOTKEYS = {
+            TOGGLE_MENU = 0x72
+        },
         ANIMATION = {
             MESSAGE_DURATION = 0.4,
             WINDOW_TOGGLE_SPEED = 0.15,

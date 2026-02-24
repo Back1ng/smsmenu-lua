@@ -19,9 +19,7 @@ local MessageService = require "src.services.message"
 local ContactService = require "src.services.contact"
 local SAMPServices = require "src.services.samp"
 local ChatHookService = require "src.services.chat_hook"
-
-local messageQueue = {}
-local isProcessingQueue = false
+local MessageQueue = require "src.services.message_queue"
 
 local utf8_str = utils_encoding.utf8_str
 local cp1251_to_utf8 = utils_encoding.cp1251_to_utf8
@@ -107,82 +105,22 @@ local function getMessageAnimationProgress(phone)
     return easeOutCubic(progress)
 end
 
--- Process queued messages one by one to prevent race conditions
-local function processMessageQueue()
-    if isProcessingQueue then return end
-    isProcessingQueue = true
-    
-    while #messageQueue > 0 do
-        local msgData = table.remove(messageQueue, 1)
-        local serverKey = msgData.serverKey
-        local nickname = msgData.nickname
-        local phoneNumber = msgData.phoneNumber
-        local text = msgData.text
-        local isOutgoing = msgData.isOutgoing
-        
-        -- Get or create contact
-        local contact, currentNumber = ContactService.getOrCreateContact(serverKey, nickname, phoneNumber)
-        
-        local message = {
-            text = text,
-            timestamp = msgData.timestamp or os.time(),
-            isOutgoing = isOutgoing,
-            senderName = isOutgoing and "You" or nickname,
-            read = isOutgoing  -- outgoing messages are always "read", incoming are unread
-        }
-        
-        table.insert(contact.messages, message)
-        contact.lastMessage = text
-        contact.lastTimestamp = message.timestamp
-        
-        -- Increment unread count for incoming messages
-        if not isOutgoing then
-            contact.unreadCount = (contact.unreadCount or 0) + 1
-        end
-        
-        -- Limit message history per contact
-        if #contact.messages > CONFIG.CONSTANTS.LIMITS.MAX_MESSAGES_PER_CONTACT then
-            table.remove(contact.messages, 1)
+-- Update UI animations
+local function updateAnimations(state, CONFIG)
+    if state.newMessageAnim > 0 then
+        state.newMessageAnim = state.newMessageAnim - CONFIG.CONSTANTS.ANIMATION.NEW_MSG_INDICATOR_SPEED
+        if state.newMessageAnim < 0 then
+            state.newMessageAnim = 0
         end
     end
     
-    -- Save all changes at once after processing queue
-    if core_storage.pendingSave then
-        saveData()
+    if state.windowOpen[0] and state.windowOpenAnim < 1.0 then
+        state.windowOpenAnim = math.min(state.windowOpenAnim + CONFIG.CONSTANTS.ANIMATION.WINDOW_TOGGLE_SPEED, 1.0)
+    elseif not state.windowOpen[0] and state.windowOpenAnim > 0 then
+        state.windowOpenAnim = math.max(state.windowOpenAnim - CONFIG.CONSTANTS.ANIMATION.WINDOW_TOGGLE_SPEED, 0)
     end
     
-    isProcessingQueue = false
-end
-
--- Queue a message for processing (thread-safe)
-local function queueMessage(serverKey, nickname, phoneNumber, text, isOutgoing)
-    table.insert(messageQueue, {
-        serverKey = serverKey,
-        nickname = nickname,
-        phoneNumber = phoneNumber,
-        text = text,
-        isOutgoing = isOutgoing,
-        timestamp = os.time()
-    })
-    core_storage.pendingSave = true
-    
-    -- Process immediately if possible
-    processMessageQueue()
-    
-    return phoneNumber
-end
-
-local function addMessage(serverKey, nickname, phoneNumber, text, isOutgoing)
-    -- Use queue-based processing to prevent race conditions
-    local currentNumber = queueMessage(serverKey, nickname, phoneNumber, text, isOutgoing)
-    
-    -- Trigger UI updates
-    if state then
-        state.scrollToBottom = true
-        state.newMessageAnim = 1.0
-    end
-    
-    return currentNumber
+    state.newMessagePulse = (os.clock() % 1.0)
 end
 
 -- Main function
@@ -215,6 +153,14 @@ function main()
         smsData = smsData
     })
     
+    MessageQueue.init({
+        ContactService = ContactService,
+        CONFIG = CONFIG,
+        core_storage = core_storage,
+        saveData = saveData,
+        state = state
+    })
+    
     ContactService.init({
         smsData = smsData,
         saveData = saveData,
@@ -230,7 +176,7 @@ function main()
         state = state,
         SAMPServices = SAMPServices,
         ContactService = ContactService,
-        addMessage = addMessage,
+        addMessage = MessageQueue.addMessage,
         playAlertSound = playAlertSound
     })
     
@@ -315,20 +261,18 @@ function main()
     -- Hook chat messages using sampEvents
     -- Returns false to hide message from chat, true/nil to show
     sampEvents.onServerMessage = function(color, text)
-        if text then
-            local isSMS = ChatHookService.handleChatMessage(tostring(text))
-            if isSMS and CONFIG.hideSMSFromChat then
-                return false -- Hide SMS from chat
-            end
+        if not text then return end
+        local isSMS = ChatHookService.handleChatMessage(tostring(text))
+        if isSMS and CONFIG.hideSMSFromChat then
+            return false -- Hide SMS from chat
         end
     end
     
     sampEvents.onChatMessage = function(playerId, text)
-        if text then
-            local isSMS = ChatHookService.handleChatMessage(tostring(text))
-            if isSMS and CONFIG.hideSMSFromChat then
-                return false -- Hide SMS from chat
-            end
+        if not text then return end
+        local isSMS = ChatHookService.handleChatMessage(tostring(text))
+        if isSMS and CONFIG.hideSMSFromChat then
+            return false -- Hide SMS from chat
         end
     end
     
@@ -336,28 +280,13 @@ function main()
     while true do
         wait(0)
         
-        -- F3 hotkey to toggle messenger
-        if isKeyJustPressed(0x72) and not sampIsChatInputActive() and not sampIsDialogActive() then
+        -- Hotkey to toggle messenger
+        if isKeyJustPressed(CONFIG.CONSTANTS.HOTKEYS.TOGGLE_MENU) and not sampIsChatInputActive() and not sampIsDialogActive() then
             _G.toggleSMSMenu()
         end
         
-        -- Animate new message indicator
-        if state.newMessageAnim > 0 then
-            state.newMessageAnim = state.newMessageAnim - CONFIG.CONSTANTS.ANIMATION.NEW_MSG_INDICATOR_SPEED
-            if state.newMessageAnim < 0 then
-                state.newMessageAnim = 0
-            end
-        end
-        
-        -- Animate window open
-        if state.windowOpen[0] and state.windowOpenAnim < 1.0 then
-            state.windowOpenAnim = math.min(state.windowOpenAnim + CONFIG.CONSTANTS.ANIMATION.WINDOW_TOGGLE_SPEED, 1.0)
-        elseif not state.windowOpen[0] and state.windowOpenAnim > 0 then
-            state.windowOpenAnim = math.max(state.windowOpenAnim - CONFIG.CONSTANTS.ANIMATION.WINDOW_TOGGLE_SPEED, 0)
-        end
-        
-        -- Animate new message pulse
-        state.newMessagePulse = (os.clock() % 1.0)  -- 0 to 1 cycle
+        -- Update UI animations
+        updateAnimations(state, CONFIG)
         
 
         
@@ -368,8 +297,8 @@ function main()
         end
         
         -- Process any pending messages in queue and save if needed
-        if #messageQueue > 0 or core_storage.pendingSave then
-            processMessageQueue()
+        if MessageQueue.hasMessages() or core_storage.pendingSave then
+            MessageQueue.processMessageQueue()
         end
         
         -- Periodic save if there are pending changes

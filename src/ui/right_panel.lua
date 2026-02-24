@@ -140,8 +140,9 @@ M.drawRightPanel = function()
             imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary)
         )
         
-        local contactName = cp1251_to_utf8(tostring(contact.name or "?"))
-        local initial = contactName:sub(1, 1):upper()
+        local contactNameRaw = tostring(contact.name or "?")
+        local contactName = cp1251_to_utf8(contactNameRaw)
+        local initial = cp1251_to_utf8(contactNameRaw:sub(1, 1)):upper()
         local textSize = imgui.CalcTextSize(initial)
         drawList:AddText(
             imgui.ImVec2(avatarPos.x + scaled(15) - textSize.x / 2, avatarPos.y + scaled(15) - textSize.y / 2),
