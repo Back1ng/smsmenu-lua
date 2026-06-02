@@ -69,9 +69,14 @@ end
 
 local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i, contact, contactName, timeStr, itemAlpha, CONFIG)
     imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(10)))
-    local nameColor = (contact.unreadCount or 0) > 0 and CONFIG.colors.primary or CONFIG.colors.textDark
+    local isUnread = (contact.unreadCount or 0) > 0
+    local nameColor = isUnread and CONFIG.colors.primary or CONFIG.colors.textDark
     local nameColorWithAlpha = imgui.ImVec4(nameColor.x, nameColor.y, nameColor.z, itemAlpha)
     imgui.TextColored(nameColorWithAlpha, contactName)
+    if isUnread then
+        imgui.SetCursorPos(imgui.ImVec2(scaled(61) + slideX, (i - 1) * itemHeight + scaled(10)))
+        imgui.TextColored(nameColorWithAlpha, contactName)
+    end
     
     imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(30)))
     local previewRaw = tostring(contact.lastMessage or "No messages")
@@ -91,43 +96,42 @@ local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i,
 end
 
 local function drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
-    local dotRadius = scaled(5)
-    local dotX = panelWidth - scaled(20) - slideX
-    local dotY = itemPos.y + itemHeight / 2
-    
+    local countStr = unreadCount > 99 and "99+" or tostring(unreadCount)
+    local countSize = imgui.CalcTextSize(countStr)
+    local badgeHeight = scaled(20)
+    local badgeRadius = badgeHeight / 2
+    local badgeWidth = math.max(scaled(22), countSize.x + scaled(14))
+    local badgeRight = windowPos.x + panelWidth - scaled(12) - slideX
+    local badgeLeft = badgeRight - badgeWidth
+    local badgeCenterY = itemPos.y + itemHeight / 2
+    local badgeTop = badgeCenterY - badgeHeight / 2
+    local badgeBottom = badgeCenterY + badgeHeight / 2
+
     local haloColor = imgui.ColorConvertFloat4ToU32(imgui.ImVec4(
         CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z, pulseAlpha
     ))
     drawList:AddCircleFilled(
-        imgui.ImVec2(windowPos.x + dotX, dotY),
-        dotRadius * pulseScale * 1.5,
+        imgui.ImVec2(badgeRight - badgeRadius, badgeCenterY),
+        badgeRadius * pulseScale * 1.45,
         haloColor
     )
-    
-    local mainDotColor = imgui.ImVec4(CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z, itemAlpha)
-    drawList:AddCircleFilled(
-        imgui.ImVec2(windowPos.x + dotX, dotY),
-        dotRadius,
-        imgui.ColorConvertFloat4ToU32(mainDotColor)
+
+    local badgeColor = imgui.ColorConvertFloat4ToU32(
+        imgui.ImVec4(CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z, itemAlpha)
     )
-    
-    local whiteWithAlpha = imgui.ImVec4(1, 1, 1, itemAlpha)
-    drawList:AddCircle(
-        imgui.ImVec2(windowPos.x + dotX, dotY),
-        dotRadius,
-        imgui.ColorConvertFloat4ToU32(whiteWithAlpha),
-        12, scaled(1.5)
+    drawList:AddRectFilled(
+        imgui.ImVec2(badgeLeft + badgeRadius, badgeTop),
+        imgui.ImVec2(badgeRight - badgeRadius, badgeBottom),
+        badgeColor
     )
-    
-    if unreadCount > 1 then
-        local countStr = tostring(unreadCount)
-        local countSize = imgui.CalcTextSize(countStr)
-        drawList:AddText(
-            imgui.ImVec2(windowPos.x + dotX - countSize.x / 2, dotY + dotRadius + scaled(2)),
-            imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary),
-            countStr
-        )
-    end
+    drawList:AddCircleFilled(imgui.ImVec2(badgeLeft + badgeRadius, badgeCenterY), badgeRadius, badgeColor)
+    drawList:AddCircleFilled(imgui.ImVec2(badgeRight - badgeRadius, badgeCenterY), badgeRadius, badgeColor)
+
+    drawList:AddText(
+        imgui.ImVec2(badgeLeft + (badgeWidth - countSize.x) / 2, badgeCenterY - countSize.y / 2),
+        imgui.ColorConvertFloat4ToU32(imgui.ImVec4(1, 1, 1, itemAlpha)),
+        countStr
+    )
 end
 
 local function drawHeader(panelWidth)
@@ -190,11 +194,39 @@ local function drawHeader(panelWidth)
     local style = imgui.GetStyle()
     local oldFramePadding = { style.FramePadding.x, style.FramePadding.y }
     local oldFrameRounding = style.FrameRounding
-    style.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
+    style.FramePadding = imgui.ImVec2(scaled(30), framePaddingY)
     style.FrameRounding = scaled(5)
-    
+
+    local searchScreenPos = imgui.GetCursorScreenPos()
+    imgui.PushStyleColor(imgui.Col.FrameBg, CONFIG.colors.searchBg)
+    imgui.PushStyleColor(imgui.Col.FrameBgHovered, CONFIG.colors.selected)
+    imgui.PushStyleColor(imgui.Col.FrameBgActive, CONFIG.colors.searchBg)
+    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
     if imgui.InputText("##search", state.searchText, 256) then
         state.filteredContacts = filterContacts(ffi.string(state.searchText))
+    end
+    imgui.PopStyleColor(4)
+
+    local drawList = imgui.GetWindowDrawList()
+    local iconColor = imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray)
+    local iconCenter = imgui.ImVec2(searchScreenPos.x + scaled(15), searchScreenPos.y + searchHeight / 2 - scaled(1))
+    drawList:AddCircle(iconCenter, scaled(5), iconColor, 12, scaled(1.5))
+    drawList:AddLine(
+        imgui.ImVec2(iconCenter.x + scaled(4), iconCenter.y + scaled(4)),
+        imgui.ImVec2(iconCenter.x + scaled(8), iconCenter.y + scaled(8)),
+        iconColor,
+        scaled(1.5)
+    )
+
+    if ffi.string(state.searchText) == "" then
+        local placeholder = "Search"
+        local placeholderSize = imgui.CalcTextSize(placeholder)
+        local placeholderColor = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, 0.85)
+        drawList:AddText(
+            imgui.ImVec2(searchScreenPos.x + scaled(30), searchScreenPos.y + (searchHeight - placeholderSize.y) / 2),
+            imgui.ColorConvertFloat4ToU32(placeholderColor),
+            placeholder
+        )
     end
     
 
@@ -233,18 +265,20 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
     
 
     if isSelected then
+        local selectedColor = CONFIG.colors.selectedStrong or CONFIG.colors.selected
         drawList:AddRectFilled(
             itemMin,
             itemMax,
-            imgui.ColorConvertFloat4ToU32(CONFIG.colors.selected)
+            imgui.ColorConvertFloat4ToU32(selectedColor)
         )
     elseif state.contactHover[i] > 0 then
 
+        local rowHover = CONFIG.colors.rowHover or CONFIG.colors.selected
         local hoverColor = imgui.ImVec4(
-            CONFIG.colors.selected.x,
-            CONFIG.colors.selected.y,
-            CONFIG.colors.selected.z,
-            CONFIG.colors.selected.w * state.contactHover[i] * CONFIG.CONSTANTS.ANIMATION.HOVER_MAX_OPACITY
+            rowHover.x,
+            rowHover.y,
+            rowHover.z,
+            rowHover.w * state.contactHover[i]
         )
         drawList:AddRectFilled(
             itemMin,
