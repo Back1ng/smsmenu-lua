@@ -30,16 +30,23 @@ function M.init(deps)
     helpers = deps.helpers
 end
 
-local function drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics)
+local function drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics, stackPosition)
+    local radius = scaled(15)
+    if stackPosition == "middle" then
+        radius = scaled(10)
+    elseif stackPosition == "top" or stackPosition == "bottom" then
+        radius = scaled(13)
+    end
+
     childDrawList:AddRectFilled(
         imgui.ImVec2(cursorScreenPos.x + bubbleX, cursorScreenPos.y),
         imgui.ImVec2(cursorScreenPos.x + bubbleX + bubbleWidth, cursorScreenPos.y + bubbleHeight),
         imgui.ColorConvertFloat4ToU32(bubbleColor),
-        scaled(15)
+        radius
     )
     
     local textOffsetY = scaled(4)
-    local indentWidth, indentChars = TextMetrics.measureLeadingIndent(msgText, fontScaleMultiplier)
+    local indentWidth = TextMetrics.measureLeadingIndent(msgText, fontScaleMultiplier)
     local textStartX = bubbleX + scaled(14) + indentWidth
     
     imgui.SetCursorPos(imgui.ImVec2(textStartX, cursorPosY + textOffsetY))
@@ -52,11 +59,85 @@ end
 
 local function drawMessageTime(imgui, timeStr, bubbleX, bubbleWidth, bubbleHeight, cursorPosY, isOutgoing, scaled, CONFIG)
     local timeSize = imgui.CalcTextSize(timeStr)
-    local timeX = isOutgoing and (bubbleX - timeSize.x - scaled(8)) or (bubbleX + bubbleWidth + scaled(8))
-    local timeY = cursorPosY + (bubbleHeight - timeSize.y) / 2
+    local timeX = isOutgoing and (bubbleX + bubbleWidth - timeSize.x - scaled(2)) or (bubbleX + scaled(2))
+    local timeY = cursorPosY + bubbleHeight + scaled(3)
     
     imgui.SetCursorPos(imgui.ImVec2(timeX, timeY))
     imgui.TextColored(CONFIG.colors.textGray, timeStr)
+end
+
+local monthNames = {
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+}
+
+local function getDayKey(timestamp)
+    timestamp = tonumber(timestamp)
+    if not timestamp or timestamp == 0 then return "" end
+
+    return os.date("%Y-%m-%d", timestamp) or ""
+end
+
+local function formatDateSeparator(timestamp)
+    timestamp = tonumber(timestamp)
+    if not timestamp or timestamp == 0 then return "" end
+
+    local messageDate = os.date("*t", timestamp)
+    local todayDate = os.date("*t", os.time())
+    if not messageDate or not todayDate then return "" end
+
+    local messageStart = os.time({year = messageDate.year, month = messageDate.month, day = messageDate.day, hour = 0, min = 0, sec = 0})
+    local todayStart = os.time({year = todayDate.year, month = todayDate.month, day = todayDate.day, hour = 0, min = 0, sec = 0})
+    local dayDiff = math.floor((todayStart - messageStart) / 86400)
+
+    if dayDiff == 0 then
+        return "Today"
+    elseif dayDiff == 1 then
+        return "Yesterday"
+    end
+
+    local monthName = monthNames[messageDate.month] or tostring(messageDate.month)
+    return tostring(messageDate.day) .. " " .. monthName
+end
+
+local function drawDateSeparator(imgui, childDrawList, cursorScreenPos, cursorPosY, rightPanelWidth, label, scaled, CONFIG)
+    if label == "" then return end
+
+    local labelSize = imgui.CalcTextSize(label)
+    local labelX = (rightPanelWidth - labelSize.x) / 2
+    local labelY = cursorPosY + scaled(9)
+    local lineY = cursorScreenPos.y + scaled(18)
+    local linePadding = scaled(18)
+    local labelPadding = scaled(10)
+    local lineColor = imgui.ColorConvertFloat4ToU32(CONFIG.colors.border)
+
+    childDrawList:AddLine(
+        imgui.ImVec2(cursorScreenPos.x + linePadding, lineY),
+        imgui.ImVec2(cursorScreenPos.x + labelX - labelPadding, lineY),
+        lineColor,
+        1.0
+    )
+    childDrawList:AddLine(
+        imgui.ImVec2(cursorScreenPos.x + labelX + labelSize.x + labelPadding, lineY),
+        imgui.ImVec2(cursorScreenPos.x + rightPanelWidth - linePadding, lineY),
+        lineColor,
+        1.0
+    )
+
+    imgui.SetCursorPos(imgui.ImVec2(labelX, labelY))
+    imgui.TextColored(CONFIG.colors.textGray, label)
+end
+
+local function getStackPosition(prevSameGroup, nextSameGroup)
+    if prevSameGroup and nextSameGroup then
+        return "middle"
+    elseif nextSameGroup then
+        return "top"
+    elseif prevSameGroup then
+        return "bottom"
+    end
+
+    return "single"
 end
 
 local function drawEmptyState(rightPanelX, rightPanelWidth, windowSize)
@@ -201,7 +282,8 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
         local messages = contact.messages or {}
         
         local totalMessagesHeight = scaled(10)
-        local messageSizes = {}
+        local messageLayouts = {}
+        local previousDayKey = nil
         
         for i, msg in ipairs(messages) do
             if type(msg) == "table" then
@@ -225,11 +307,40 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
                 
                 if bubbleWidth < scaled(50) then bubbleWidth = scaled(50) end
                 if bubbleHeight < scaled(25) then bubbleHeight = scaled(25) end
-                
-                table.insert(messageSizes, {text = msgText, utf8Text = utf8Text, textSize = singleLineSize, lines = lines, bubbleWidth = bubbleWidth, bubbleHeight = bubbleHeight})
-                totalMessagesHeight = totalMessagesHeight + bubbleHeight + scaled(12)
+
+                local currentDayKey = getDayKey(msg.timestamp)
+                local dateLabel = nil
+                if currentDayKey ~= "" and currentDayKey ~= previousDayKey then
+                    dateLabel = formatDateSeparator(msg.timestamp)
+                    totalMessagesHeight = totalMessagesHeight + scaled(36)
+                end
+
+                local prevMsg = messages[i - 1]
+                local nextMsg = messages[i + 1]
+                local prevSameGroup = type(prevMsg) == "table" and prevMsg.isOutgoing == msg.isOutgoing and getDayKey(prevMsg.timestamp) == currentDayKey
+                local nextSameGroup = type(nextMsg) == "table" and nextMsg.isOutgoing == msg.isOutgoing and getDayKey(nextMsg.timestamp) == currentDayKey
+                local showTime = not nextSameGroup
+                local timeStr = tostring(os.date("%H:%M", tonumber(msg.timestamp) or 0) or "")
+                local timeHeight = showTime and (imgui.CalcTextSize(timeStr).y + scaled(6)) or 0
+                local spacingAfter = showTime and scaled(12) or scaled(4)
+
+                messageLayouts[i] = {
+                    text = msgText,
+                    utf8Text = utf8Text,
+                    textSize = singleLineSize,
+                    lines = lines,
+                    bubbleWidth = bubbleWidth,
+                    bubbleHeight = bubbleHeight,
+                    dateLabel = dateLabel,
+                    showTime = showTime,
+                    timeStr = timeStr,
+                    stackPosition = getStackPosition(prevSameGroup, nextSameGroup),
+                    spacingAfter = spacingAfter
+                }
+                totalMessagesHeight = totalMessagesHeight + bubbleHeight + timeHeight + spacingAfter
+                previousDayKey = currentDayKey
             else
-                table.insert(messageSizes, nil)
+                messageLayouts[i] = nil
             end
         end
         
@@ -241,28 +352,35 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
         end
         
         for i, msg in ipairs(messages) do
-            if type(msg) == "table" and messageSizes[i] then
+            if type(msg) == "table" and messageLayouts[i] then
                 local isOutgoing = msg.isOutgoing
                 local bubbleColor = isOutgoing and CONFIG.colors.sentBubble or CONFIG.colors.receivedBubble
                 local textColor = isOutgoing and CONFIG.colors.textLight or CONFIG.colors.textDark
                 
-                local msgText = messageSizes[i].utf8Text
+                local msgText = messageLayouts[i].utf8Text
                 
-                local bubbleWidth = messageSizes[i].bubbleWidth
-                local bubbleHeight = messageSizes[i].bubbleHeight
-                local textSize = messageSizes[i].textSize
-                
+                local bubbleWidth = messageLayouts[i].bubbleWidth
+                local bubbleHeight = messageLayouts[i].bubbleHeight
                 local bubbleX = isOutgoing and (rightPanelWidth - bubbleWidth - scaled(15)) or scaled(15)
                 
                 local cursorScreenPos = imgui.GetCursorScreenPos()
                 local cursorPosY = imgui.GetCursorPosY()
+
+                if messageLayouts[i].dateLabel then
+                    drawDateSeparator(imgui, childDrawList, cursorScreenPos, cursorPosY, rightPanelWidth, messageLayouts[i].dateLabel, scaled, CONFIG)
+                    imgui.SetCursorPosY(cursorPosY + scaled(36))
+                    cursorScreenPos = imgui.GetCursorScreenPos()
+                    cursorPosY = imgui.GetCursorPosY()
+                end
                 
-                drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics)
+                drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics, messageLayouts[i].stackPosition)
                 
-                local timeStr = tostring(os.date("%H:%M", tonumber(msg.timestamp) or 0) or "")
-                drawMessageTime(imgui, timeStr, bubbleX, bubbleWidth, bubbleHeight, cursorPosY, isOutgoing, scaled, CONFIG)
+                if messageLayouts[i].showTime then
+                    drawMessageTime(imgui, messageLayouts[i].timeStr, bubbleX, bubbleWidth, bubbleHeight, cursorPosY, isOutgoing, scaled, CONFIG)
+                end
                 
-                imgui.SetCursorPosY(cursorPosY + bubbleHeight + scaled(12))
+                local timeHeight = messageLayouts[i].showTime and (imgui.CalcTextSize(messageLayouts[i].timeStr).y + scaled(6)) or 0
+                imgui.SetCursorPosY(cursorPosY + bubbleHeight + timeHeight + messageLayouts[i].spacingAfter)
             end
         end
         
