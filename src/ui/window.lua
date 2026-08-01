@@ -14,6 +14,7 @@ local getCurrentServerKey = nil
 local getContactsList = nil
 local helpers = nil
 local design = nil
+local i18n = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -30,6 +31,7 @@ function M.init(deps)
     getContactsList = deps.getContactsList
     helpers = deps.helpers
     design = deps.design
+    i18n = deps.i18n
 end
 
 function M.setup()
@@ -77,7 +79,7 @@ function M.setup()
                 "close",
                 imgui.ImVec2(closeSize, closeSize),
                 design.button("dangerIcon"),
-                "Close",
+                i18n.t("close"),
                 design.radius("MD")
             ) then
                 state.windowOpen[0] = false

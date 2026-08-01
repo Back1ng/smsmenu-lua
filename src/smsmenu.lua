@@ -46,6 +46,7 @@ local core_theme = require "src.core.theme"
 local core_state = require "src.core.state"
 local core_audio = require "src.core.audio"
 local core_storage = require "src.core.storage"
+local core_i18n = require "src.core.i18n"
 
 local CONFIG = core_config.CONFIG
 local scaled = core_config.scaled
@@ -82,6 +83,7 @@ core_storage.init({ CONFIG = CONFIG, getFullPath = getFullPath })
 core_theme.init({ CONFIG = CONFIG, saveSettings = saveSettings })
 core_audio.init({ CONFIG = CONFIG, getFullPath = getFullPath })
 core_state.init({ imgui = imgui })
+core_i18n.init({ CONFIG = CONFIG })
 
 
 local function startMessageAnimation(phone)
@@ -215,7 +217,8 @@ function main()
         drawDeleteConfirmDialog = ui_modals.drawDeleteConfirmDialog,
         drawSettingsDialog = ui_modals.drawSettingsDialog,
         helpers = ui_helpers,
-        design = ui_style
+        design = ui_style,
+        i18n = core_i18n
     }
     ui_style.init(uiDeps)
     ui_modals.init(uiDeps)

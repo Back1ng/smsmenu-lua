@@ -9,6 +9,7 @@ local CONFIG = {
     inputHeight = 60,
     colors = nil, -- Will be initialized in main()
     currentTheme = "light",
+    language = "ru",
     soundEnabled = true,
     hideSMSFromChat = true, -- hide SMS messages from SAMP chat
     currentSound = "1.wav", -- default sound file

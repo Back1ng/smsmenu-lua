@@ -19,6 +19,7 @@ local ALERT_SOUNDS = nil
 local playAlertSound = nil
 local helpers = nil
 local design = nil
+local i18n = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -40,6 +41,7 @@ function M.init(deps)
     playAlertSound = deps.playAlertSound
     helpers = deps.helpers
     design = deps.design
+    i18n = deps.i18n
 end
 
 local function messengerModalFlags()
@@ -114,7 +116,7 @@ local function drawModalActions(confirmLabel, confirmEnabled, destructive)
 
     local cancelClicked = helpers.drawStyledButton(
         imgui,
-        "Cancel##modalcancel",
+        i18n.t("cancel") .. "##modalcancel",
         imgui.ImVec2(buttonWidth, buttonHeight),
         design.button("neutral")
     )
@@ -179,13 +181,13 @@ M.drawNewContactDialog = function()
 
     helpers.centerDialog(imgui, scaled, 380, 270)
     pushMessengerModalStyle()
-    if imgui.BeginPopupModal("New Contact", nil, messengerModalFlags()) then
+    if imgui.BeginPopupModal(i18n.popupTitle("new_contact", "NewContact"), nil, messengerModalFlags()) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
-        drawModalHeading("Start a new conversation", "Add a phone number to begin messaging.")
+        drawModalHeading(i18n.t("start_conversation_title"), i18n.t("start_conversation_hint"))
 
-        local phoneEntered = drawMessengerInput("##newphone", "Phone number", "Enter phone number", state.newContactPhone, 32)
+        local phoneEntered = drawMessengerInput("##newphone", i18n.t("phone_number"), i18n.t("enter_phone"), state.newContactPhone, 32)
         imgui.Spacing()
-        local nameEntered = drawMessengerInput("##newname", "Contact name", "Optional", state.newContactName, 64)
+        local nameEntered = drawMessengerInput("##newname", i18n.t("contact_name"), i18n.t("optional"), state.newContactName, 64)
 
         local phone = ffi.string(state.newContactPhone):gsub("%s+", "")
         local name = ffi.string(state.newContactName):gsub("^%s*", ""):gsub("%s*$", "")
@@ -193,13 +195,13 @@ M.drawNewContactDialog = function()
 
         imgui.Spacing()
         imgui.Spacing()
-        local cancelClicked, startClicked = drawModalActions("Start chat", canStart, false)
+        local cancelClicked, startClicked = drawModalActions(i18n.t("start_chat"), canStart, false)
         if cancelClicked then
             state.showNewContactDialog = false
             imgui.CloseCurrentPopup()
         elseif (startClicked or phoneEntered or nameEntered) and canStart then
             if name == "" then
-                name = "Contact " .. phone
+                name = i18n.t("default_contact_name", phone)
             end
 
             local serverKey = getCurrentServerKey()
@@ -240,19 +242,19 @@ M.drawDeleteConfirmDialog = function()
 
     helpers.centerDialog(imgui, scaled, 380, 235)
     pushMessengerModalStyle()
-    if imgui.BeginPopupModal("Confirm Delete", nil, messengerModalFlags()) then
+    if imgui.BeginPopupModal(i18n.popupTitle("confirm_delete", "ConfirmDelete"), nil, messengerModalFlags()) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
-        drawModalHeading("Delete this conversation?", "The contact and message history will be removed.")
+        drawModalHeading(i18n.t("delete_conversation_title"), i18n.t("delete_conversation_hint"))
 
         local name = cp1251_to_utf8(state.deleteContactName or "")
         local phone = state.deleteContactPhone or ""
         drawContactSummary(name, phone)
         imgui.Spacing()
-        imgui.TextColored(CONFIG.colors.danger, "This action cannot be undone.")
+        imgui.TextColored(CONFIG.colors.danger, i18n.t("irreversible_warning"))
 
         imgui.Spacing()
         imgui.Spacing()
-        local cancelClicked, deleteClicked = drawModalActions("Delete", phone ~= "", true)
+        local cancelClicked, deleteClicked = drawModalActions(i18n.t("delete"), phone ~= "", true)
         if cancelClicked then
             state.showDeleteConfirmDialog = false
             state.deleteContactName = ""
@@ -280,13 +282,13 @@ M.drawEditContactDialog = function()
 
     helpers.centerDialog(imgui, scaled, 380, 270)
     pushMessengerModalStyle()
-    if imgui.BeginPopupModal("Edit Contact", nil, messengerModalFlags()) then
+    if imgui.BeginPopupModal(i18n.popupTitle("edit_contact_title", "EditContact"), nil, messengerModalFlags()) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
-        drawModalHeading("Contact details", "Update the name or phone number for this chat.")
+        drawModalHeading(i18n.t("contact_details"), i18n.t("contact_details_hint"))
 
-        local phoneEntered = drawMessengerInput("##editphone", "Phone number", "Enter phone number", state.editContactPhone, 32)
+        local phoneEntered = drawMessengerInput("##editphone", i18n.t("phone_number"), i18n.t("enter_phone"), state.editContactPhone, 32)
         imgui.Spacing()
-        local nameEntered = drawMessengerInput("##editname", "Contact name", "Enter contact name", state.editContactName, 64)
+        local nameEntered = drawMessengerInput("##editname", i18n.t("contact_name"), i18n.t("enter_contact_name"), state.editContactName, 64)
 
         local newPhone = ffi.string(state.editContactPhone):gsub("%s+", "")
         local newName = ffi.string(state.editContactName):gsub("^%s*", ""):gsub("%s*$", "")
@@ -294,7 +296,7 @@ M.drawEditContactDialog = function()
 
         imgui.Spacing()
         imgui.Spacing()
-        local cancelClicked, saveClicked = drawModalActions("Save changes", canSave, false)
+        local cancelClicked, saveClicked = drawModalActions(i18n.t("save_changes"), canSave, false)
         if cancelClicked then
             state.showEditContactDialog = false
             imgui.CloseCurrentPopup()
@@ -405,7 +407,7 @@ local function drawSoundSelector()
     drawList:AddText(
         imgui.ImVec2(cursor.x + design.spacing("MD"), cursor.y + scaled(7)),
         imgui.ColorConvertFloat4ToU32(CONFIG.colors.textDark),
-        "Alert sound"
+        i18n.t("alert_sound")
     )
     drawList:AddText(
         imgui.ImVec2(cursor.x + design.spacing("MD"), cursor.y + scaled(26)),
@@ -458,22 +460,50 @@ local function drawSoundSelector()
     imgui.PopStyleColor(2)
 end
 
+local function drawLanguageSelector()
+    imgui.TextColored(CONFIG.colors.textDark, i18n.t("language"))
+    imgui.Spacing()
+
+    local width = imgui.GetContentRegionAvail().x
+    local gap = design.spacing("SM")
+    local buttonWidth = (width - gap) / 2
+    local buttonHeight = design.controlHeight("DEFAULT")
+    local style = imgui.GetStyle()
+    local oldRounding = style.FrameRounding
+    style.FrameRounding = design.radius("MD")
+
+    local englishColors = CONFIG.language == "en" and design.button("primary") or design.button("neutral")
+    if helpers.drawStyledButton(imgui, i18n.t("english") .. "##language_en", imgui.ImVec2(buttonWidth, buttonHeight), englishColors) then
+        CONFIG.language = "en"
+        saveSettings()
+    end
+
+    imgui.SameLine(0, gap)
+    local russianColors = CONFIG.language == "ru" and design.button("primary") or design.button("neutral")
+    if helpers.drawStyledButton(imgui, i18n.t("russian") .. "##language_ru", imgui.ImVec2(buttonWidth, buttonHeight), russianColors) then
+        CONFIG.language = "ru"
+        saveSettings()
+    end
+
+    style.FrameRounding = oldRounding
+end
+
 M.drawSettingsDialog = function()
     if not state.showSettingsDialog then return end
 
-    helpers.centerDialog(imgui, scaled, 400, 410)
+    helpers.centerDialog(imgui, scaled, 400, 465)
     imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
     imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
 
     local flags = imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse
-    if imgui.BeginPopupModal("Settings", nil, flags) then
+    if imgui.BeginPopupModal(i18n.popupTitle("settings", "Settings"), nil, flags) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
 
-        drawSettingsSection("NOTIFICATIONS")
+        drawSettingsSection(i18n.t("section_notifications"))
         if drawSettingsToggle(
             "##soundenabled",
-            "Sound notifications",
-            "Play a sound for new messages",
+            i18n.t("sound_notifications"),
+            i18n.t("sound_notifications_hint"),
             CONFIG.soundEnabled
         ) then
             CONFIG.soundEnabled = not CONFIG.soundEnabled
@@ -483,8 +513,8 @@ M.drawSettingsDialog = function()
         imgui.Spacing()
         if drawSettingsToggle(
             "##hidesms",
-            "Messenger-only SMS",
-            "Hide SMS messages from game chat",
+            i18n.t("messenger_only_sms"),
+            i18n.t("messenger_only_sms_hint"),
             CONFIG.hideSMSFromChat
         ) then
             CONFIG.hideSMSFromChat = not CONFIG.hideSMSFromChat
@@ -493,23 +523,23 @@ M.drawSettingsDialog = function()
 
         imgui.Spacing()
         imgui.Spacing()
-        drawSettingsSection("SOUND")
+        drawSettingsSection(i18n.t("section_sound"))
         if #ALERT_SOUNDS > 0 then
             drawSoundSelector()
             imgui.Spacing()
             local testSoundColors = design.button("neutral")
             testSoundColors.text = CONFIG.colors.primary
-            if helpers.drawStyledButton(imgui, "Play selected sound##testsound", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("ICON")), testSoundColors) then
+            if helpers.drawStyledButton(imgui, i18n.t("play_selected_sound") .. "##testsound", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("ICON")), testSoundColors) then
                 playAlertSound()
             end
         else
-            imgui.TextColored(CONFIG.colors.textGray, "No sounds found in smsmenu/alerts/")
+            imgui.TextColored(CONFIG.colors.textGray, i18n.t("no_sounds_found"))
         end
 
         imgui.Spacing()
         imgui.Spacing()
-        drawSettingsSection("APPEARANCE")
-        imgui.TextColored(CONFIG.colors.textDark, "Interface scale")
+        drawSettingsSection(i18n.t("section_appearance"))
+        imgui.TextColored(CONFIG.colors.textDark, i18n.t("interface_scale"))
         local fontScale = imgui.new.float(CONFIG.fontScale)
         imgui.SetNextItemWidth(imgui.GetContentRegionAvail().x)
         if imgui.SliderFloat("##fontscale", fontScale, 0.8, 1.5, "%.1fx") then
@@ -518,8 +548,11 @@ M.drawSettingsDialog = function()
         end
 
         imgui.Spacing()
+        drawLanguageSelector()
+
         imgui.Spacing()
-        if helpers.drawStyledButton(imgui, "Done##closesettings", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("DEFAULT")), design.button("primary")) then
+        imgui.Spacing()
+        if helpers.drawStyledButton(imgui, i18n.t("done") .. "##closesettings", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("DEFAULT")), design.button("primary")) then
             state.showSettingsDialog = false
             imgui.CloseCurrentPopup()
         end

@@ -73,6 +73,7 @@ function M.loadSettings()
             local data, _, err = json.decode(content)
             if data then
                 if data.theme then CONFIG.currentTheme = data.theme end
+                if data.language == "en" or data.language == "ru" then CONFIG.language = data.language end
                 if data.soundEnabled ~= nil then CONFIG.soundEnabled = data.soundEnabled end
                 if data.currentSound then CONFIG.currentSound = data.currentSound end
                 if data.hideSMSFromChat ~= nil then CONFIG.hideSMSFromChat = data.hideSMSFromChat end
@@ -89,6 +90,7 @@ function M.saveSettings()
     if file then
         file:write(json.encode({ 
             theme = CONFIG.currentTheme,
+            language = CONFIG.language,
             soundEnabled = CONFIG.soundEnabled,
             currentSound = CONFIG.currentSound,
             hideSMSFromChat = CONFIG.hideSMSFromChat,

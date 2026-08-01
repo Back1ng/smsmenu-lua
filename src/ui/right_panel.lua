@@ -14,6 +14,7 @@ local MessageService = nil
 local ffi = nil
 local helpers = nil
 local design = nil
+local i18n = nil
 
 function M.init(deps)
     CONFIG = deps.CONFIG
@@ -30,6 +31,7 @@ function M.init(deps)
     ffi = deps.ffi
     helpers = deps.helpers
     design = deps.design
+    i18n = deps.i18n
 end
 
 local function drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics, stackPosition)
@@ -68,11 +70,6 @@ local function drawMessageTime(imgui, timeStr, bubbleX, bubbleWidth, bubbleHeigh
     imgui.TextColored(CONFIG.colors.textGray, timeStr)
 end
 
-local monthNames = {
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-}
-
 local function getDayKey(timestamp)
     timestamp = tonumber(timestamp)
     if not timestamp or timestamp == 0 then return "" end
@@ -93,12 +90,12 @@ local function formatDateSeparator(timestamp)
     local dayDiff = math.floor((todayStart - messageStart) / 86400)
 
     if dayDiff == 0 then
-        return "Today"
+        return i18n.t("today")
     elseif dayDiff == 1 then
-        return "Yesterday"
+        return i18n.t("yesterday")
     end
 
-    local monthName = monthNames[messageDate.month] or tostring(messageDate.month)
+    local monthName = i18n.month(messageDate.month)
     return tostring(messageDate.day) .. " " .. monthName
 end
 
@@ -201,21 +198,21 @@ local function drawEmptyState(rightPanelX, rightPanelWidth, windowSize)
         imgui.ColorConvertFloat4ToU32(CONFIG.colors.border),
         1.0
     )
-    drawConversationPlaceholder(drawList, areaMin, areaMax, "Your messages", "Select a contact to start chatting")
+    drawConversationPlaceholder(drawList, areaMin, areaMax, i18n.t("your_messages"), i18n.t("select_contact_hint"))
 end
 
 local function openEditContactDialog(contact)
     state.editContactPhone = imgui.new.char[32](contact.phone or "")
     state.editContactName = imgui.new.char[64](contact.name or "")
     state.showEditContactDialog = true
-    imgui.OpenPopup("Edit Contact")
+    imgui.OpenPopup(i18n.popupTitle("edit_contact_title", "EditContact"))
 end
 
 local function openDeleteContactDialog(contact)
     state.deleteContactName = contact.name or ""
     state.deleteContactPhone = contact.phone or ""
     state.showDeleteConfirmDialog = true
-    imgui.OpenPopup("Confirm Delete")
+    imgui.OpenPopup(i18n.popupTitle("confirm_delete", "ConfirmDelete"))
 end
 
 local function drawContactActionsMenu(contact)
@@ -224,12 +221,12 @@ local function drawContactActionsMenu(contact)
     imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
     imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
     if imgui.BeginPopup("##contactactions") then
-        if helpers.drawStyledButton(imgui, "Edit contact##menuedit", imgui.ImVec2(scaled(144), design.controlHeight("COMPACT")), design.button("neutral")) then
+        if helpers.drawStyledButton(imgui, i18n.t("edit_contact") .. "##menuedit", imgui.ImVec2(scaled(144), design.controlHeight("COMPACT")), design.button("neutral")) then
             requestedAction = "edit"
             imgui.CloseCurrentPopup()
         end
 
-        if helpers.drawStyledButton(imgui, "Delete contact##menudelete", imgui.ImVec2(scaled(144), design.controlHeight("COMPACT")), design.button("dangerGhost")) then
+        if helpers.drawStyledButton(imgui, i18n.t("delete_contact") .. "##menudelete", imgui.ImVec2(scaled(144), design.controlHeight("COMPACT")), design.button("dangerGhost")) then
             requestedAction = "delete"
             imgui.CloseCurrentPopup()
         end
@@ -254,7 +251,7 @@ local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, righ
     if isMobile then
         imgui.SetCursorPos(imgui.ImVec2(scaled(12), scaled(10)))
         local backSize = design.controlHeight("ICON")
-        if helpers.drawIconButton(imgui, "##back", "back", imgui.ImVec2(backSize, backSize), design.button("neutral"), "Back to contacts", design.radius("MD")) then
+        if helpers.drawIconButton(imgui, "##back", "back", imgui.ImVec2(backSize, backSize), design.button("neutral"), i18n.t("back_to_contacts"), design.radius("MD")) then
             state.selectedContact = nil
             state.scrollToBottom = false
         end
@@ -291,21 +288,21 @@ local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, righ
     imgui.TextColored(CONFIG.colors.textDark, contactName)
     imgui.SetCursorPos(imgui.ImVec2(nameX, scaled(30)))
 
-    local onlineStatus = isContactOnline(contact.name) and "online" or "offline"
+    local onlineStatus = isContactOnline(contact.name) and i18n.t("status_online") or i18n.t("status_offline")
     local statusTextClr = isContactOnline(contact.name) and CONFIG.colors.statusOnline or CONFIG.colors.textGray
     imgui.TextColored(statusTextClr, tostring(contact.phone or "") .. " | " .. onlineStatus)
     
     local iconSize = design.controlHeight("ICON")
     local actionSize = imgui.ImVec2(iconSize, iconSize)
     imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(114), scaled(10)))
-    if helpers.drawIconButton(imgui, "##callcontact", "phone", actionSize, design.button("success"), "Call contact", design.radius("MD")) then
+    if helpers.drawIconButton(imgui, "##callcontact", "phone", actionSize, design.button("success"), i18n.t("call_contact"), design.radius("MD")) then
         if contact.phone then
             sampSendChat("/c " .. contact.phone)
         end
     end
     
     imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(78), scaled(10)))
-    if helpers.drawIconButton(imgui, "##contactactionsbtn", "more", actionSize, design.button("neutral"), "Contact actions", design.radius("MD")) then
+    if helpers.drawIconButton(imgui, "##contactactionsbtn", "more", actionSize, design.button("neutral"), i18n.t("contact_actions"), design.radius("MD")) then
         imgui.OpenPopup("##contactactions")
     end
     drawContactActionsMenu(contact)
@@ -358,8 +355,8 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
                 childDrawList,
                 childPos,
                 imgui.ImVec2(childPos.x + childSize.x, childPos.y + childSize.y),
-                "No messages yet",
-                "Send a message to start the conversation"
+                i18n.t("no_messages_yet"),
+                i18n.t("first_message_hint")
             )
             imgui.Dummy(imgui.ImVec2(1, math.max(1, messagesHeight - scaled(1))))
             state.lastScrollMax = 0
@@ -526,7 +523,7 @@ local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
     local draftMessage = ffi.string(state.messageText)
     local canSend = draftMessage:gsub("%s+", "") ~= ""
     if not canSend and not inputActive then
-        local placeholder = "Type a message..."
+        local placeholder = i18n.t("type_message")
         local placeholderSize = imgui.CalcTextSize(placeholder)
         imgui.GetWindowDrawList():AddText(
             imgui.ImVec2(
@@ -558,7 +555,7 @@ local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
     
     if helpers.drawStyledButton(
         imgui,
-        "Send##sendbtn",
+        i18n.t("send") .. "##sendbtn",
         imgui.ImVec2(scaled(75), sendBtnHeight),
         canSend and design.button("primary") or design.button("disabled")
     ) then

@@ -17,6 +17,7 @@ local markContactAsRead = nil
 local formatTime = nil
 local helpers = nil
 local design = nil
+local i18n = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -36,6 +37,7 @@ function M.init(deps)
     formatTime = deps.formatTime
     helpers = deps.helpers
     design = deps.design
+    i18n = deps.i18n
 end
 
 local function drawAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
@@ -82,11 +84,16 @@ local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i,
     end
     
     imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(29)))
-    local previewRaw = tostring(contact.lastMessage or "No messages")
-    if #previewRaw > 24 then
-        previewRaw = previewRaw:sub(1, 24) .. "..."
+    local preview
+    if contact.lastMessage then
+        local previewRaw = tostring(contact.lastMessage)
+        if #previewRaw > 24 then
+            previewRaw = previewRaw:sub(1, 24) .. "..."
+        end
+        preview = cp1251_to_utf8(previewRaw)
+    else
+        preview = i18n.t("no_messages")
     end
-    local preview = cp1251_to_utf8(previewRaw)
     local previewColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
     imgui.TextColored(previewColorWithAlpha, preview)
     
@@ -130,14 +137,14 @@ end
 
 local function drawHeader(panelWidth, isMobile)
     imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(15)))
-    imgui.TextColored(CONFIG.colors.textDark, "SMS Messenger")
+    imgui.TextColored(CONFIG.colors.textDark, i18n.t("app_title"))
     
 
     local iconSize = design.controlHeight("ICON")
     local btnSize = imgui.ImVec2(iconSize, iconSize)
     -- In mobile mode the global close button occupies the rightmost header slot.
     local closeButtonReserve = isMobile and design.controlHeight("LARGE") or 0
-    local themeTooltip = CONFIG.currentTheme == "light" and "Switch to dark theme" or "Switch to light theme"
+    local themeTooltip = CONFIG.currentTheme == "light" and i18n.t("theme_to_dark") or i18n.t("theme_to_light")
     local themeBtnX = panelWidth - scaled(114) - closeButtonReserve
     imgui.SetCursorPos(imgui.ImVec2(themeBtnX, scaled(10)))
     
@@ -149,19 +156,19 @@ local function drawHeader(panelWidth, isMobile)
     -- Settings button
     local settingsBtnX = panelWidth - scaled(78) - closeButtonReserve
     imgui.SetCursorPos(imgui.ImVec2(settingsBtnX, scaled(10)))
-    if helpers.drawIconButton(imgui, "##settings", "settings", btnSize, design.button("neutral"), "Settings", design.radius("MD")) then
+    if helpers.drawIconButton(imgui, "##settings", "settings", btnSize, design.button("neutral"), i18n.t("settings"), design.radius("MD")) then
         state.showSettingsDialog = true
-        imgui.OpenPopup("Settings")
+        imgui.OpenPopup(i18n.popupTitle("settings", "Settings"))
     end
     
 
     local newMsgBtnX = panelWidth - scaled(42) - closeButtonReserve
     imgui.SetCursorPos(imgui.ImVec2(newMsgBtnX, scaled(10)))
-    if helpers.drawIconButton(imgui, "##newmsg", "plus", btnSize, design.button("primary"), "New conversation", design.radius("MD")) then
+    if helpers.drawIconButton(imgui, "##newmsg", "plus", btnSize, design.button("primary"), i18n.t("new_conversation"), design.radius("MD")) then
         state.showNewContactDialog = true
         state.newContactPhone[0] = 0
         state.newContactName[0] = 0
-        imgui.OpenPopup("New Contact")
+        imgui.OpenPopup(i18n.popupTitle("new_contact", "NewContact"))
     end
     
 
@@ -201,7 +208,7 @@ local function drawHeader(panelWidth, isMobile)
     )
 
     if ffi.string(state.searchText) == "" then
-        local placeholder = "Search"
+        local placeholder = i18n.t("search")
         local placeholderSize = imgui.CalcTextSize(placeholder)
         local placeholderColor = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, 0.85)
         drawList:AddText(
