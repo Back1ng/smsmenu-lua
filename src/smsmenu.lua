@@ -57,6 +57,7 @@ local THEMES = core_theme.THEMES
 local ALERT_SOUNDS = core_audio.ALERT_SOUNDS
 local scanAlertSounds = core_audio.scanAlertSounds
 local playAlertSound = core_audio.playAlertSound
+local updateAudio = core_audio.update
 
 
 local smsData = core_storage.smsData
@@ -303,6 +304,7 @@ function main()
         
 
         updateAnimations(state, CONFIG)
+        updateAudio()
         
 
         

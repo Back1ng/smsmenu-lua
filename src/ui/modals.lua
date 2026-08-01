@@ -524,7 +524,7 @@ M.drawSettingsDialog = function()
         return
     end
 
-    helpers.centerDialog(imgui, scaled, 400, 555)
+    helpers.centerDialog(imgui, scaled, 400, 600)
     imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
     imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
 
@@ -559,14 +559,26 @@ M.drawSettingsDialog = function()
         drawSettingsSection(i18n.t("section_sound"))
         if #ALERT_SOUNDS > 0 then
             drawSoundSelector()
+        else
+            imgui.TextColored(CONFIG.colors.textGray, i18n.t("no_sounds_found"))
+        end
+
+        imgui.Spacing()
+        imgui.TextColored(CONFIG.colors.textDark, i18n.t("notification_volume"))
+        local soundVolume = imgui.new.int(CONFIG.soundVolume)
+        imgui.SetNextItemWidth(imgui.GetContentRegionAvail().x)
+        if imgui.SliderInt("##soundvolume", soundVolume, 0, 100, "%d%%") then
+            CONFIG.soundVolume = soundVolume[0]
+            saveSettings()
+        end
+
+        if #ALERT_SOUNDS > 0 then
             imgui.Spacing()
             local testSoundColors = design.button("neutral")
             testSoundColors.text = CONFIG.colors.primary
             if helpers.drawStyledButton(imgui, i18n.t("play_selected_sound") .. "##testsound", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("ICON")), testSoundColors) then
                 playAlertSound()
             end
-        else
-            imgui.TextColored(CONFIG.colors.textGray, i18n.t("no_sounds_found"))
         end
 
         imgui.Spacing()

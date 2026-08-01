@@ -11,6 +11,7 @@ local CONFIG = {
     currentTheme = "light",
     language = "ru",
     soundEnabled = true,
+    soundVolume = 100, -- notification volume (0 - 100)
     hideSMSFromChat = true, -- hide SMS messages from SAMP chat
     currentSound = "1.wav", -- default sound file
     fontScale = 1.0, -- UI font scale (0.8 - 1.5)

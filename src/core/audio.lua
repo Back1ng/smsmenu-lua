@@ -1,17 +1,8 @@
-local ffi = require "ffi"
 local lfs = require "lfs"
 
 local M = {}
 local CONFIG = nil
-
-ffi.cdef[[
-    int PlaySoundA(const char* pszSound, void* hmod, unsigned long fdwSound);
-    int MessageBeep(unsigned int uType);
-]]
-local winmm = ffi.load("winmm")
-local SND_FILENAME = 0x00020000
-local SND_ASYNC = 0x0001
-local SND_NODEFAULT = 0x0002
+local activeStream = nil
 
 M.ALERT_SOUNDS = {}
 
@@ -39,21 +30,36 @@ function M.scanAlertSounds()
     return M.ALERT_SOUNDS
 end
 
+local function releaseActiveStream()
+    if activeStream == nil then return end
+    releaseAudioStream(activeStream)
+    activeStream = nil
+end
+
 function M.playAlertSound()
+    releaseActiveStream()
+
     if not CONFIG.soundEnabled then return end
+    if type(CONFIG.soundVolume) ~= "number" or CONFIG.soundVolume <= 0 then return end
     if not CONFIG.currentSound or CONFIG.currentSound == "" then return end
     
     local soundPath = M.getFullPath(CONFIG.alertsDir .. [[\]] .. CONFIG.currentSound)
     soundPath = soundPath:gsub("/", "\\")
     
-    if doesFileExist(soundPath) then
-        local flags = SND_FILENAME + SND_ASYNC + SND_NODEFAULT
-        local result = winmm.PlaySoundA(soundPath, nil, flags)
-        if result == 0 then
-            ffi.C.MessageBeep(0x40)
-        end
-    else
-        ffi.C.MessageBeep(0xFFFFFFFF)
+    if not doesFileExist(soundPath) then return end
+
+    local stream = loadAudioStream(soundPath)
+    if not stream then return end
+
+    activeStream = stream
+    setAudioStreamLooped(activeStream, false)
+    setAudioStreamVolume(activeStream, math.max(0, math.min(1, CONFIG.soundVolume / 100)))
+    setAudioStreamState(activeStream, 1)
+end
+
+function M.update()
+    if activeStream ~= nil and getAudioStreamState(activeStream) == -1 then
+        releaseActiveStream()
     end
 end
 
