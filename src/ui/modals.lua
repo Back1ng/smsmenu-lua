@@ -18,6 +18,7 @@ local saveSettings = nil
 local ALERT_SOUNDS = nil
 local playAlertSound = nil
 local helpers = nil
+local design = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -38,6 +39,7 @@ function M.init(deps)
     ALERT_SOUNDS = deps.ALERT_SOUNDS
     playAlertSound = deps.playAlertSound
     helpers = deps.helpers
+    design = deps.design
 end
 
 local function messengerModalFlags()
@@ -64,21 +66,22 @@ local function drawMessengerInput(id, label, placeholder, buffer, capacity)
     imgui.TextColored(CONFIG.colors.textDark, label)
     imgui.Spacing()
 
-    local inputHeight = scaled(32)
+    local inputHeight = design.controlHeight("DEFAULT")
     local fontSize = imgui.GetFontSize()
     local framePaddingY = math.max(4, (inputHeight - fontSize) / 2)
     local style = imgui.GetStyle()
     local oldFramePadding = { style.FramePadding.x, style.FramePadding.y }
     local oldFrameRounding = style.FrameRounding
-    style.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
-    style.FrameRounding = scaled(8)
+    style.FramePadding = imgui.ImVec2(design.spacing("MD"), framePaddingY)
+    style.FrameRounding = design.radius("MD")
 
     imgui.SetNextItemWidth(imgui.GetContentRegionAvail().x)
     local inputPos = imgui.GetCursorScreenPos()
-    imgui.PushStyleColor(imgui.Col.FrameBg, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.FrameBgHovered, CONFIG.colors.selected)
-    imgui.PushStyleColor(imgui.Col.FrameBgActive, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
+    local inputColors = design.inputColors()
+    imgui.PushStyleColor(imgui.Col.FrameBg, inputColors.background)
+    imgui.PushStyleColor(imgui.Col.FrameBgHovered, inputColors.hovered)
+    imgui.PushStyleColor(imgui.Col.FrameBgActive, inputColors.active)
+    imgui.PushStyleColor(imgui.Col.Text, inputColors.text)
     local submitted = imgui.InputText(id, buffer, capacity, imgui.InputTextFlags.EnterReturnsTrue)
     local active = imgui.IsItemActive()
     imgui.PopStyleColor(4)
@@ -87,10 +90,10 @@ local function drawMessengerInput(id, label, placeholder, buffer, capacity)
         local placeholderSize = imgui.CalcTextSize(placeholder)
         imgui.GetWindowDrawList():AddText(
             imgui.ImVec2(
-                inputPos.x + scaled(10),
+                inputPos.x + design.spacing("MD"),
                 inputPos.y + (inputHeight - placeholderSize.y) / 2
             ),
-            imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+            imgui.ColorConvertFloat4ToU32(inputColors.placeholder),
             placeholder
         )
     end
@@ -102,43 +105,28 @@ end
 
 local function drawModalActions(confirmLabel, confirmEnabled, destructive)
     local availableWidth = imgui.GetContentRegionAvail().x
-    local gap = scaled(8)
+    local gap = design.spacing("SM")
     local buttonWidth = (availableWidth - gap) / 2
-    local buttonHeight = scaled(32)
+    local buttonHeight = design.controlHeight("DEFAULT")
     local style = imgui.GetStyle()
     local oldRounding = style.FrameRounding
-    style.FrameRounding = scaled(8)
+    style.FrameRounding = design.radius("MD")
 
-    local cancelClicked = helpers.drawStyledButton(imgui, "Cancel##modalcancel", imgui.ImVec2(buttonWidth, buttonHeight), {
-        button = CONFIG.colors.searchBg,
-        hovered = CONFIG.colors.selected,
-        active = CONFIG.colors.border,
-        text = CONFIG.colors.textDark
-    })
+    local cancelClicked = helpers.drawStyledButton(
+        imgui,
+        "Cancel##modalcancel",
+        imgui.ImVec2(buttonWidth, buttonHeight),
+        design.button("neutral")
+    )
     imgui.SameLine(0, gap)
 
     local confirmColors
     if not confirmEnabled then
-        confirmColors = {
-            button = CONFIG.colors.searchBg,
-            hovered = CONFIG.colors.searchBg,
-            active = CONFIG.colors.searchBg,
-            text = CONFIG.colors.textGray
-        }
+        confirmColors = design.button("disabled")
     elseif destructive then
-        confirmColors = {
-            button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
-            hovered = imgui.ImVec4(1.0, 0.4, 0.4, 1.0),
-            active = imgui.ImVec4(0.8, 0.2, 0.2, 1.0),
-            text = imgui.ImVec4(1, 1, 1, 1)
-        }
+        confirmColors = design.button("danger")
     else
-        confirmColors = {
-            button = CONFIG.colors.primary,
-            hovered = CONFIG.colors.primaryHover,
-            active = CONFIG.colors.primaryHover,
-            text = CONFIG.colors.textLight
-        }
+        confirmColors = design.button("primary")
     end
 
     local confirmClicked = helpers.drawStyledButton(
@@ -163,8 +151,8 @@ local function drawContactSummary(name, phone)
     drawList:AddRectFilled(
         cursor,
         imgui.ImVec2(cursor.x + width, cursor.y + height),
-        imgui.ColorConvertFloat4ToU32(CONFIG.colors.searchBg),
-        scaled(9)
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.surface),
+        design.radius("MD")
     )
     local avatarCenter = imgui.ImVec2(cursor.x + scaled(27), cursor.y + height / 2)
     drawList:AddCircleFilled(avatarCenter, scaled(18), imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary), 20)
@@ -260,7 +248,7 @@ M.drawDeleteConfirmDialog = function()
         local phone = state.deleteContactPhone or ""
         drawContactSummary(name, phone)
         imgui.Spacing()
-        imgui.TextColored(imgui.ImVec4(0.9, 0.3, 0.3, 1.0), "This action cannot be undone.")
+        imgui.TextColored(CONFIG.colors.danger, "This action cannot be undone.")
 
         imgui.Spacing()
         imgui.Spacing()
@@ -355,22 +343,22 @@ local function drawSettingsToggle(id, title, description, value)
     local cursor = imgui.GetCursorScreenPos()
     local clicked = imgui.InvisibleButton(id, imgui.ImVec2(width, height))
     local hovered = imgui.IsItemHovered()
-    local surface = hovered and CONFIG.colors.selected or CONFIG.colors.searchBg
+    local surface = hovered and CONFIG.colors.surfaceHover or CONFIG.colors.surface
     local drawList = imgui.GetWindowDrawList()
 
     drawList:AddRectFilled(
         cursor,
         imgui.ImVec2(cursor.x + width, cursor.y + height),
         imgui.ColorConvertFloat4ToU32(surface),
-        scaled(9)
+        design.radius("MD")
     )
     drawList:AddText(
-        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(8)),
+        imgui.ImVec2(cursor.x + design.spacing("MD"), cursor.y + design.spacing("SM")),
         imgui.ColorConvertFloat4ToU32(CONFIG.colors.textDark),
         title
     )
     drawList:AddText(
-        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(29)),
+        imgui.ImVec2(cursor.x + design.spacing("MD"), cursor.y + scaled(29)),
         imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
         description
     )
@@ -405,22 +393,22 @@ local function drawSoundSelector()
     local cursor = imgui.GetCursorScreenPos()
     local clicked = imgui.InvisibleButton("##soundselector", imgui.ImVec2(width, height))
     local hovered = imgui.IsItemHovered()
-    local surface = hovered and CONFIG.colors.selected or CONFIG.colors.searchBg
+    local surface = hovered and CONFIG.colors.surfaceHover or CONFIG.colors.surface
     local drawList = imgui.GetWindowDrawList()
 
     drawList:AddRectFilled(
         cursor,
         imgui.ImVec2(cursor.x + width, cursor.y + height),
         imgui.ColorConvertFloat4ToU32(surface),
-        scaled(9)
+        design.radius("MD")
     )
     drawList:AddText(
-        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(7)),
+        imgui.ImVec2(cursor.x + design.spacing("MD"), cursor.y + scaled(7)),
         imgui.ColorConvertFloat4ToU32(CONFIG.colors.textDark),
         "Alert sound"
     )
     drawList:AddText(
-        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(26)),
+        imgui.ImVec2(cursor.x + design.spacing("MD"), cursor.y + scaled(26)),
         imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
         CONFIG.currentSound or "None"
     )
@@ -453,17 +441,12 @@ local function drawSoundSelector()
         for i, sound in ipairs(ALERT_SOUNDS) do
             local isSelected = sound == CONFIG.currentSound
             local colors = isSelected and {
-                button = CONFIG.colors.selected,
-                hovered = CONFIG.colors.selected,
-                active = CONFIG.colors.border,
+                button = CONFIG.colors.surfaceHover,
+                hovered = CONFIG.colors.surfaceHover,
+                active = CONFIG.colors.surfaceActive,
                 text = CONFIG.colors.primary
-            } or {
-                button = CONFIG.colors.background,
-                hovered = CONFIG.colors.searchBg,
-                active = CONFIG.colors.selected,
-                text = CONFIG.colors.textDark
-            }
-            if helpers.drawStyledButton(imgui, sound .. "##soundoption" .. i, imgui.ImVec2(imgui.GetContentRegionAvail().x, scaled(28)), colors) then
+            } or design.button("neutral")
+            if helpers.drawStyledButton(imgui, sound .. "##soundoption" .. i, imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("COMPACT")), colors) then
                 CONFIG.currentSound = sound
                 saveSettings()
                 playAlertSound()
@@ -514,12 +497,9 @@ M.drawSettingsDialog = function()
         if #ALERT_SOUNDS > 0 then
             drawSoundSelector()
             imgui.Spacing()
-            if helpers.drawStyledButton(imgui, "Play selected sound##testsound", imgui.ImVec2(imgui.GetContentRegionAvail().x, scaled(30)), {
-                button = CONFIG.colors.searchBg,
-                hovered = CONFIG.colors.selected,
-                active = CONFIG.colors.border,
-                text = CONFIG.colors.primary
-            }) then
+            local testSoundColors = design.button("neutral")
+            testSoundColors.text = CONFIG.colors.primary
+            if helpers.drawStyledButton(imgui, "Play selected sound##testsound", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("ICON")), testSoundColors) then
                 playAlertSound()
             end
         else
@@ -539,12 +519,7 @@ M.drawSettingsDialog = function()
 
         imgui.Spacing()
         imgui.Spacing()
-        if helpers.drawStyledButton(imgui, "Done##closesettings", imgui.ImVec2(imgui.GetContentRegionAvail().x, scaled(32)), {
-            button = CONFIG.colors.primary,
-            hovered = CONFIG.colors.primaryHover,
-            active = CONFIG.colors.primaryHover,
-            text = CONFIG.colors.textLight
-        }) then
+        if helpers.drawStyledButton(imgui, "Done##closesettings", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("DEFAULT")), design.button("primary")) then
             state.showSettingsDialog = false
             imgui.CloseCurrentPopup()
         end

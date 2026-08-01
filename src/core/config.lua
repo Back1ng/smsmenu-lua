@@ -41,6 +41,10 @@ local CONFIG = {
         UI = {
             MOBILE_BREAKPOINT = 600,
             PADDING = { SMALL = 5, MEDIUM = 10, LARGE = 15 },
+            SPACING = { XS = 4, SM = 8, MD = 12, LG = 16, XL = 24 },
+            RADIUS = { SM = 5, MD = 8, LG = 12 },
+            CONTROL_HEIGHT = { COMPACT = 28, ICON = 30, DEFAULT = 32, LARGE = 36 },
+            STROKE = { HAIRLINE = 1, ACCENT = 3 },
             AVATAR = { SMALL = 15, MEDIUM = 18 },
             BUTTONS = { ACTION_W = 42, ACTION_H = 26, ICON = 28 },
             PANEL = { LIST_ITEM_HEIGHT = 64 }

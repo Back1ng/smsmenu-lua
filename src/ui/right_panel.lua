@@ -13,6 +13,7 @@ local sampSendChat = nil
 local MessageService = nil
 local ffi = nil
 local helpers = nil
+local design = nil
 
 function M.init(deps)
     CONFIG = deps.CONFIG
@@ -28,14 +29,15 @@ function M.init(deps)
     MessageService = deps.MessageService
     ffi = deps.ffi
     helpers = deps.helpers
+    design = deps.design
 end
 
 local function drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics, stackPosition)
-    local radius = scaled(15)
+    local radius = design.radius("LG")
     if stackPosition == "middle" then
-        radius = scaled(10)
+        radius = design.radius("MD")
     elseif stackPosition == "top" or stackPosition == "bottom" then
-        radius = scaled(13)
+        radius = design.radius("LG")
     end
 
     childDrawList:AddRectFilled(
@@ -112,7 +114,7 @@ local function drawDateSeparator(imgui, childDrawList, cursorScreenPos, rightPan
     childDrawList:AddRectFilled(
         imgui.ImVec2(cursorScreenPos.x + pillX, pillY),
         imgui.ImVec2(cursorScreenPos.x + pillX + pillWidth, pillY + pillHeight),
-        imgui.ColorConvertFloat4ToU32(CONFIG.colors.searchBg),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.surface),
         pillHeight / 2
     )
     childDrawList:AddText(
@@ -126,12 +128,7 @@ local function drawConversationPlaceholder(drawList, areaMin, areaMax, title, su
     local centerX = (areaMin.x + areaMax.x) / 2
     local centerY = (areaMin.y + areaMax.y) / 2 - scaled(18)
     local iconColor = imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary)
-    local iconSurface = imgui.ImVec4(
-        CONFIG.colors.primary.x,
-        CONFIG.colors.primary.y,
-        CONFIG.colors.primary.z,
-        0.12
-    )
+    local iconSurface = design.withAlpha(CONFIG.colors.primary, 0.12)
 
     drawList:AddCircleFilled(
         imgui.ImVec2(centerX, centerY - scaled(22)),
@@ -227,22 +224,12 @@ local function drawContactActionsMenu(contact)
     imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
     imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
     if imgui.BeginPopup("##contactactions") then
-        if helpers.drawStyledButton(imgui, "Edit contact##menuedit", imgui.ImVec2(scaled(144), scaled(28)), {
-            button = CONFIG.colors.searchBg,
-            hovered = CONFIG.colors.selected,
-            active = CONFIG.colors.border,
-            text = CONFIG.colors.textDark
-        }) then
+        if helpers.drawStyledButton(imgui, "Edit contact##menuedit", imgui.ImVec2(scaled(144), design.controlHeight("COMPACT")), design.button("neutral")) then
             requestedAction = "edit"
             imgui.CloseCurrentPopup()
         end
 
-        if helpers.drawStyledButton(imgui, "Delete contact##menudelete", imgui.ImVec2(scaled(144), scaled(28)), {
-            button = CONFIG.colors.background,
-            hovered = imgui.ImVec4(0.9, 0.3, 0.3, 0.22),
-            active = imgui.ImVec4(0.9, 0.3, 0.3, 0.35),
-            text = imgui.ImVec4(0.9, 0.3, 0.3, 1.0)
-        }) then
+        if helpers.drawStyledButton(imgui, "Delete contact##menudelete", imgui.ImVec2(scaled(144), design.controlHeight("COMPACT")), design.button("dangerGhost")) then
             requestedAction = "delete"
             imgui.CloseCurrentPopup()
         end
@@ -266,12 +253,8 @@ local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, righ
     
     if isMobile then
         imgui.SetCursorPos(imgui.ImVec2(scaled(12), scaled(10)))
-        if helpers.drawIconButton(imgui, "##back", "back", imgui.ImVec2(scaled(30), scaled(30)), {
-            button = CONFIG.colors.searchBg,
-            hovered = CONFIG.colors.selected,
-            active = CONFIG.colors.border,
-            text = CONFIG.colors.textDark
-        }, "Back to contacts", scaled(7)) then
+        local backSize = design.controlHeight("ICON")
+        if helpers.drawIconButton(imgui, "##back", "back", imgui.ImVec2(backSize, backSize), design.button("neutral"), "Back to contacts", design.radius("MD")) then
             state.selectedContact = nil
             state.scrollToBottom = false
         end
@@ -296,9 +279,9 @@ local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, righ
     )
     
     local isOnline = isContactOnline(contact.name)
-    local statusColor = isOnline and 
-        imgui.ColorConvertFloat4ToU32(imgui.ImVec4(0.3, 0.85, 0.39, 1.0)) or
-        imgui.ColorConvertFloat4ToU32(imgui.ImVec4(0.56, 0.56, 0.58, 1.0))
+    local statusColor = imgui.ColorConvertFloat4ToU32(
+        isOnline and CONFIG.colors.statusOnline or CONFIG.colors.statusOffline
+    )
     local statusPos = imgui.ImVec2(avatarPos.x + scaled(24), avatarPos.y + scaled(24))
     drawList:AddCircleFilled(statusPos, scaled(5), statusColor)
     drawList:AddCircle(statusPos, scaled(5), imgui.ColorConvertFloat4ToU32(imgui.ImVec4(1, 1, 1, 1)), 12, scaled(2))
@@ -309,31 +292,20 @@ local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, righ
     imgui.SetCursorPos(imgui.ImVec2(nameX, scaled(30)))
 
     local onlineStatus = isContactOnline(contact.name) and "online" or "offline"
-    local statusTextClr = isContactOnline(contact.name) and 
-        imgui.ImVec4(0.3, 0.8, 0.4, 1.0) or 
-        CONFIG.colors.textGray
+    local statusTextClr = isContactOnline(contact.name) and CONFIG.colors.statusOnline or CONFIG.colors.textGray
     imgui.TextColored(statusTextClr, tostring(contact.phone or "") .. " | " .. onlineStatus)
     
-    local actionSize = imgui.ImVec2(scaled(30), scaled(30))
+    local iconSize = design.controlHeight("ICON")
+    local actionSize = imgui.ImVec2(iconSize, iconSize)
     imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(114), scaled(10)))
-    if helpers.drawIconButton(imgui, "##callcontact", "phone", actionSize, {
-        button = imgui.ImVec4(0.2, 0.7, 0.3, 1.0),
-        hovered = imgui.ImVec4(0.2, 0.8, 0.35, 1.0),
-        active = imgui.ImVec4(0.15, 0.6, 0.25, 1.0),
-        text = imgui.ImVec4(1, 1, 1, 1)
-    }, "Call contact", scaled(7)) then
+    if helpers.drawIconButton(imgui, "##callcontact", "phone", actionSize, design.button("success"), "Call contact", design.radius("MD")) then
         if contact.phone then
             sampSendChat("/c " .. contact.phone)
         end
     end
     
     imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(78), scaled(10)))
-    if helpers.drawIconButton(imgui, "##contactactionsbtn", "more", actionSize, {
-        button = CONFIG.colors.searchBg,
-        hovered = CONFIG.colors.selected,
-        active = CONFIG.colors.border,
-        text = CONFIG.colors.textDark
-    }, "Contact actions", scaled(7)) then
+    if helpers.drawIconButton(imgui, "##contactactionsbtn", "more", actionSize, design.button("neutral"), "Contact actions", design.radius("MD")) then
         imgui.OpenPopup("##contactactions")
     end
     drawContactActionsMenu(contact)
@@ -526,7 +498,7 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
 end
 
 local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
-    local sendBtnHeight = scaled(28)
+    local sendBtnHeight = design.controlHeight("COMPACT")
     local inputAreaHeight = scaled(CONFIG.inputHeight - 20) + scaled(TextMetrics.CHAR_WIDTHS.BOTTOM_PADDING)
     local inputY = windowSize.y - inputAreaHeight + (inputAreaHeight - sendBtnHeight) / 2
     imgui.SetCursorPos(imgui.ImVec2(rightPanelX + scaled(10), inputY))
@@ -538,14 +510,15 @@ local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
     local oldMsgFramePadding = { msgStyle.FramePadding.x, msgStyle.FramePadding.y }
     local oldMsgFrameRounding = msgStyle.FrameRounding
     msgStyle.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
-    msgStyle.FrameRounding = scaled(7)
+    msgStyle.FrameRounding = design.radius("MD")
     imgui.PushItemWidth(rightPanelWidth - scaled(100))
 
     local inputScreenPos = imgui.GetCursorScreenPos()
-    imgui.PushStyleColor(imgui.Col.FrameBg, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.FrameBgHovered, CONFIG.colors.selected)
-    imgui.PushStyleColor(imgui.Col.FrameBgActive, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
+    local inputColors = design.inputColors()
+    imgui.PushStyleColor(imgui.Col.FrameBg, inputColors.background)
+    imgui.PushStyleColor(imgui.Col.FrameBgHovered, inputColors.hovered)
+    imgui.PushStyleColor(imgui.Col.FrameBgActive, inputColors.active)
+    imgui.PushStyleColor(imgui.Col.Text, inputColors.text)
     local enterPressed = imgui.InputText("##message", state.messageText, 512, imgui.InputTextFlags.EnterReturnsTrue)
     local inputActive = imgui.IsItemActive()
     imgui.PopStyleColor(4)
@@ -560,7 +533,7 @@ local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
                 inputScreenPos.x + scaled(10),
                 inputScreenPos.y + (sendBtnHeight - placeholderSize.y) / 2
             ),
-            imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+            imgui.ColorConvertFloat4ToU32(inputColors.placeholder),
             placeholder
         )
     end
@@ -581,14 +554,14 @@ local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
     
     local btnStyle = imgui.GetStyle()
     local oldBtnRounding = btnStyle.FrameRounding
-    btnStyle.FrameRounding = scaled(7)
+    btnStyle.FrameRounding = design.radius("MD")
     
-    if helpers.drawStyledButton(imgui, "Send##sendbtn", imgui.ImVec2(scaled(75), sendBtnHeight), {
-        button = canSend and CONFIG.colors.primary or CONFIG.colors.searchBg,
-        hovered = canSend and CONFIG.colors.primaryHover or CONFIG.colors.searchBg,
-        active = canSend and CONFIG.colors.primaryHover or CONFIG.colors.searchBg,
-        text = canSend and CONFIG.colors.textLight or CONFIG.colors.textGray
-    }) then
+    if helpers.drawStyledButton(
+        imgui,
+        "Send##sendbtn",
+        imgui.ImVec2(scaled(75), sendBtnHeight),
+        canSend and design.button("primary") or design.button("disabled")
+    ) then
         if canSend then
             MessageService.send(contact.phone, draftMessage)
             state.messageText = imgui.new.char[512]("")

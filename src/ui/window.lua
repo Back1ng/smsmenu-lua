@@ -13,6 +13,7 @@ local drawSettingsDialog = nil
 local getCurrentServerKey = nil
 local getContactsList = nil
 local helpers = nil
+local design = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -28,6 +29,7 @@ function M.init(deps)
     getCurrentServerKey = deps.getCurrentServerKey
     getContactsList = deps.getContactsList
     helpers = deps.helpers
+    design = deps.design
 end
 
 function M.setup()
@@ -64,13 +66,20 @@ function M.setup()
             
             -- Drawn last so it renders on top of all panels
             local winSize = imgui.GetWindowSize()
-            imgui.SetCursorPos(imgui.ImVec2(winSize.x - scaled(40), scaled(10)))
-            if helpers.drawIconButton(imgui, "##close", "close", imgui.ImVec2(scaled(30), scaled(30)), {
-                button = CONFIG.colors.searchBg,
-                hovered = imgui.ImVec4(0.9, 0.3, 0.3, 0.22),
-                active = imgui.ImVec4(0.9, 0.3, 0.3, 0.35),
-                text = CONFIG.colors.textDark
-            }, "Close", scaled(7)) then
+            local closeSize = design.controlHeight("ICON")
+            imgui.SetCursorPos(imgui.ImVec2(
+                winSize.x - closeSize - design.spacing("SM"),
+                (scaled(CONFIG.headerHeight) - closeSize) / 2
+            ))
+            if helpers.drawIconButton(
+                imgui,
+                "##close",
+                "close",
+                imgui.ImVec2(closeSize, closeSize),
+                design.button("dangerIcon"),
+                "Close",
+                design.radius("MD")
+            ) then
                 state.windowOpen[0] = false
             end
         end

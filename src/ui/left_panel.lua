@@ -16,6 +16,7 @@ local getContactsList = nil
 local markContactAsRead = nil
 local formatTime = nil
 local helpers = nil
+local design = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -34,6 +35,7 @@ function M.init(deps)
     markContactAsRead = deps.markContactAsRead
     formatTime = deps.formatTime
     helpers = deps.helpers
+    design = deps.design
 end
 
 local function drawAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAlpha, CONFIG)
@@ -58,9 +60,10 @@ local function drawAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAl
         initial
     )
     
-    local statusBaseColor = isOnline and 
-        imgui.ImVec4(0.3, 0.85, 0.39, itemAlpha) or
-        imgui.ImVec4(0.56, 0.56, 0.58, itemAlpha)
+    local statusBaseColor = design.withAlpha(
+        isOnline and CONFIG.colors.statusOnline or CONFIG.colors.statusOffline,
+        itemAlpha
+    )
     local statusPos = imgui.ImVec2(avatarPos.x + scaled(28), avatarPos.y + scaled(28))
     drawList:AddCircleFilled(statusPos, scaled(6), imgui.ColorConvertFloat4ToU32(statusBaseColor))
     local whiteWithAlpha = imgui.ImVec4(1, 1, 1, itemAlpha)
@@ -130,19 +133,15 @@ local function drawHeader(panelWidth, isMobile)
     imgui.TextColored(CONFIG.colors.textDark, "SMS Messenger")
     
 
-    local btnSize = imgui.ImVec2(scaled(30), scaled(30))
+    local iconSize = design.controlHeight("ICON")
+    local btnSize = imgui.ImVec2(iconSize, iconSize)
     -- In mobile mode the global close button occupies the rightmost header slot.
-    local closeButtonReserve = isMobile and scaled(36) or 0
+    local closeButtonReserve = isMobile and design.controlHeight("LARGE") or 0
     local themeTooltip = CONFIG.currentTheme == "light" and "Switch to dark theme" or "Switch to light theme"
     local themeBtnX = panelWidth - scaled(114) - closeButtonReserve
     imgui.SetCursorPos(imgui.ImVec2(themeBtnX, scaled(10)))
     
-    if helpers.drawIconButton(imgui, "##theme", "contrast", btnSize, {
-        button = CONFIG.colors.searchBg,
-        hovered = CONFIG.colors.selected,
-        active = CONFIG.colors.border,
-        text = CONFIG.colors.textDark
-    }, themeTooltip, scaled(7)) then
+    if helpers.drawIconButton(imgui, "##theme", "contrast", btnSize, design.button("neutral"), themeTooltip, design.radius("MD")) then
         local newTheme = CONFIG.currentTheme == "light" and "dark" or "light"
         applyTheme(newTheme)
     end
@@ -150,12 +149,7 @@ local function drawHeader(panelWidth, isMobile)
     -- Settings button
     local settingsBtnX = panelWidth - scaled(78) - closeButtonReserve
     imgui.SetCursorPos(imgui.ImVec2(settingsBtnX, scaled(10)))
-    if helpers.drawIconButton(imgui, "##settings", "settings", btnSize, {
-        button = CONFIG.colors.searchBg,
-        hovered = CONFIG.colors.selected,
-        active = CONFIG.colors.border,
-        text = CONFIG.colors.textDark
-    }, "Settings", scaled(7)) then
+    if helpers.drawIconButton(imgui, "##settings", "settings", btnSize, design.button("neutral"), "Settings", design.radius("MD")) then
         state.showSettingsDialog = true
         imgui.OpenPopup("Settings")
     end
@@ -163,12 +157,7 @@ local function drawHeader(panelWidth, isMobile)
 
     local newMsgBtnX = panelWidth - scaled(42) - closeButtonReserve
     imgui.SetCursorPos(imgui.ImVec2(newMsgBtnX, scaled(10)))
-    if helpers.drawIconButton(imgui, "##newmsg", "plus", btnSize, {
-        button = CONFIG.colors.primary,
-        hovered = CONFIG.colors.primaryHover,
-        active = imgui.ImVec4(0.0, 0.4, 0.85, 1.0),
-        text = imgui.ImVec4(1, 1, 1, 1)
-    }, "New conversation", scaled(7)) then
+    if helpers.drawIconButton(imgui, "##newmsg", "plus", btnSize, design.button("primary"), "New conversation", design.radius("MD")) then
         state.showNewContactDialog = true
         state.newContactPhone[0] = 0
         state.newContactName[0] = 0
@@ -176,7 +165,7 @@ local function drawHeader(panelWidth, isMobile)
     end
     
 
-    local searchHeight = scaled(28)
+    local searchHeight = design.controlHeight("COMPACT")
     imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(44)))
     imgui.PushItemWidth(panelWidth - scaled(30))
     
@@ -187,13 +176,14 @@ local function drawHeader(panelWidth, isMobile)
     local oldFramePadding = { style.FramePadding.x, style.FramePadding.y }
     local oldFrameRounding = style.FrameRounding
     style.FramePadding = imgui.ImVec2(scaled(30), framePaddingY)
-    style.FrameRounding = scaled(5)
+    style.FrameRounding = design.radius("SM")
 
     local searchScreenPos = imgui.GetCursorScreenPos()
-    imgui.PushStyleColor(imgui.Col.FrameBg, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.FrameBgHovered, CONFIG.colors.selected)
-    imgui.PushStyleColor(imgui.Col.FrameBgActive, CONFIG.colors.searchBg)
-    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
+    local inputColors = design.inputColors()
+    imgui.PushStyleColor(imgui.Col.FrameBg, inputColors.background)
+    imgui.PushStyleColor(imgui.Col.FrameBgHovered, inputColors.hovered)
+    imgui.PushStyleColor(imgui.Col.FrameBgActive, inputColors.active)
+    imgui.PushStyleColor(imgui.Col.Text, inputColors.text)
     if imgui.InputText("##search", state.searchText, 256) then
         state.filteredContacts = filterContacts(ffi.string(state.searchText))
     end
@@ -257,7 +247,7 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
     
 
     if isSelected then
-        local selectedColor = CONFIG.colors.selectedStrong or CONFIG.colors.selected
+        local selectedColor = CONFIG.colors.contactSelected
         drawList:AddRectFilled(
             itemMin,
             itemMax,
@@ -265,12 +255,12 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
         )
         drawList:AddRectFilled(
             itemMin,
-            imgui.ImVec2(itemMin.x + scaled(3), itemMax.y),
+            imgui.ImVec2(itemMin.x + design.stroke("ACCENT"), itemMax.y),
             imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary)
         )
     elseif state.contactHover[i] > 0 then
 
-        local rowHover = CONFIG.colors.rowHover or CONFIG.colors.selected
+        local rowHover = CONFIG.colors.contactHover
         local hoverColor = imgui.ImVec4(
             rowHover.x,
             rowHover.y,
