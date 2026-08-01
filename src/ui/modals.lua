@@ -40,261 +40,308 @@ function M.init(deps)
     helpers = deps.helpers
 end
 
+local function messengerModalFlags()
+    return imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse
+end
+
+local function pushMessengerModalStyle()
+    imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
+    imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
+end
+
+local function popMessengerModalStyle()
+    imgui.PopStyleColor(2)
+end
+
+local function drawModalHeading(title, description)
+    imgui.TextColored(CONFIG.colors.textDark, title)
+    imgui.TextColored(CONFIG.colors.textGray, description)
+    imgui.Spacing()
+    imgui.Spacing()
+end
+
+local function drawMessengerInput(id, label, placeholder, buffer, capacity)
+    imgui.TextColored(CONFIG.colors.textDark, label)
+    imgui.Spacing()
+
+    local inputHeight = scaled(32)
+    local fontSize = imgui.GetFontSize()
+    local framePaddingY = math.max(4, (inputHeight - fontSize) / 2)
+    local style = imgui.GetStyle()
+    local oldFramePadding = { style.FramePadding.x, style.FramePadding.y }
+    local oldFrameRounding = style.FrameRounding
+    style.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
+    style.FrameRounding = scaled(8)
+
+    imgui.SetNextItemWidth(imgui.GetContentRegionAvail().x)
+    local inputPos = imgui.GetCursorScreenPos()
+    imgui.PushStyleColor(imgui.Col.FrameBg, CONFIG.colors.searchBg)
+    imgui.PushStyleColor(imgui.Col.FrameBgHovered, CONFIG.colors.selected)
+    imgui.PushStyleColor(imgui.Col.FrameBgActive, CONFIG.colors.searchBg)
+    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
+    local submitted = imgui.InputText(id, buffer, capacity, imgui.InputTextFlags.EnterReturnsTrue)
+    local active = imgui.IsItemActive()
+    imgui.PopStyleColor(4)
+
+    if ffi.string(buffer) == "" and not active then
+        local placeholderSize = imgui.CalcTextSize(placeholder)
+        imgui.GetWindowDrawList():AddText(
+            imgui.ImVec2(
+                inputPos.x + scaled(10),
+                inputPos.y + (inputHeight - placeholderSize.y) / 2
+            ),
+            imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+            placeholder
+        )
+    end
+
+    style.FramePadding = imgui.ImVec2(oldFramePadding[1], oldFramePadding[2])
+    style.FrameRounding = oldFrameRounding
+    return submitted
+end
+
+local function drawModalActions(confirmLabel, confirmEnabled, destructive)
+    local availableWidth = imgui.GetContentRegionAvail().x
+    local gap = scaled(8)
+    local buttonWidth = (availableWidth - gap) / 2
+    local buttonHeight = scaled(32)
+    local style = imgui.GetStyle()
+    local oldRounding = style.FrameRounding
+    style.FrameRounding = scaled(8)
+
+    local cancelClicked = helpers.drawStyledButton(imgui, "Cancel##modalcancel", imgui.ImVec2(buttonWidth, buttonHeight), {
+        button = CONFIG.colors.searchBg,
+        hovered = CONFIG.colors.selected,
+        active = CONFIG.colors.border,
+        text = CONFIG.colors.textDark
+    })
+    imgui.SameLine(0, gap)
+
+    local confirmColors
+    if not confirmEnabled then
+        confirmColors = {
+            button = CONFIG.colors.searchBg,
+            hovered = CONFIG.colors.searchBg,
+            active = CONFIG.colors.searchBg,
+            text = CONFIG.colors.textGray
+        }
+    elseif destructive then
+        confirmColors = {
+            button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
+            hovered = imgui.ImVec4(1.0, 0.4, 0.4, 1.0),
+            active = imgui.ImVec4(0.8, 0.2, 0.2, 1.0),
+            text = imgui.ImVec4(1, 1, 1, 1)
+        }
+    else
+        confirmColors = {
+            button = CONFIG.colors.primary,
+            hovered = CONFIG.colors.primaryHover,
+            active = CONFIG.colors.primaryHover,
+            text = CONFIG.colors.textLight
+        }
+    end
+
+    local confirmClicked = helpers.drawStyledButton(
+        imgui,
+        confirmLabel .. "##modalconfirm",
+        imgui.ImVec2(buttonWidth, buttonHeight),
+        confirmColors
+    )
+    style.FrameRounding = oldRounding
+    return cancelClicked, confirmClicked and confirmEnabled
+end
+
+local function drawContactSummary(name, phone)
+    local width = imgui.GetContentRegionAvail().x
+    local height = scaled(54)
+    local cursor = imgui.GetCursorScreenPos()
+    local drawList = imgui.GetWindowDrawList()
+    local rawName = state.deleteContactName or "?"
+    local initial = cp1251_to_utf8(rawName:sub(1, 1)):upper()
+
+    imgui.Dummy(imgui.ImVec2(width, height))
+    drawList:AddRectFilled(
+        cursor,
+        imgui.ImVec2(cursor.x + width, cursor.y + height),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.searchBg),
+        scaled(9)
+    )
+    local avatarCenter = imgui.ImVec2(cursor.x + scaled(27), cursor.y + height / 2)
+    drawList:AddCircleFilled(avatarCenter, scaled(18), imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary), 20)
+    local initialSize = imgui.CalcTextSize(initial)
+    drawList:AddText(
+        imgui.ImVec2(avatarCenter.x - initialSize.x / 2, avatarCenter.y - initialSize.y / 2),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textLight),
+        initial
+    )
+    drawList:AddText(
+        imgui.ImVec2(cursor.x + scaled(55), cursor.y + scaled(8)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textDark),
+        name
+    )
+    drawList:AddText(
+        imgui.ImVec2(cursor.x + scaled(55), cursor.y + scaled(29)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+        phone
+    )
+end
+
 M.drawNewContactDialog = function()
     if not state.showNewContactDialog then return end
-    
-    helpers.centerDialog(imgui, scaled, 350, 200)
-    
-    if imgui.BeginPopupModal("New Contact", nil, imgui.WindowFlags.AlwaysAutoResize) then
-        imgui.SetWindowFontScale(CONFIG.fontScale)
-        
-        -- Adjust input frame padding to match dialog style
-        local inputHeight = scaled(30)
-        local fontSize = imgui.GetFontSize()
-        local framePaddingY = math.max(4, (inputHeight - fontSize) / 2)
-        local dlgStyle = imgui.GetStyle()
-        local oldDlgFramePadding = { dlgStyle.FramePadding.x, dlgStyle.FramePadding.y }
-        dlgStyle.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
-        
-        imgui.TextColored(CONFIG.colors.textDark, "Start New Conversation")
-        imgui.Spacing()
-        
-        imgui.TextColored(CONFIG.colors.textGray, "Phone Number")
-        imgui.SetNextItemWidth(scaled(300))
-        local phoneEntered = imgui.InputText("##newphone", state.newContactPhone, 32, imgui.InputTextFlags.EnterReturnsTrue)
-        
-        imgui.Spacing()
-        imgui.TextColored(CONFIG.colors.textGray, "Name (optional)")
-        imgui.SetNextItemWidth(scaled(300))
-        local nameEntered = imgui.InputText("##newname", state.newContactName, 64, imgui.InputTextFlags.EnterReturnsTrue)
-        
-        imgui.Spacing()
-        imgui.Spacing()
-        
 
-        local btnWidth = scaled(100)
-        imgui.SetCursorPosX(scaled(350) / 2 - btnWidth - scaled(10))
-        
-        if imgui.Button("Cancel", imgui.ImVec2(btnWidth, scaled(30))) then
+    helpers.centerDialog(imgui, scaled, 380, 270)
+    pushMessengerModalStyle()
+    if imgui.BeginPopupModal("New Contact", nil, messengerModalFlags()) then
+        imgui.SetWindowFontScale(CONFIG.fontScale)
+        drawModalHeading("Start a new conversation", "Add a phone number to begin messaging.")
+
+        local phoneEntered = drawMessengerInput("##newphone", "Phone number", "Enter phone number", state.newContactPhone, 32)
+        imgui.Spacing()
+        local nameEntered = drawMessengerInput("##newname", "Contact name", "Optional", state.newContactName, 64)
+
+        local phone = ffi.string(state.newContactPhone):gsub("%s+", "")
+        local name = ffi.string(state.newContactName):gsub("^%s*", ""):gsub("%s*$", "")
+        local canStart = phone ~= ""
+
+        imgui.Spacing()
+        imgui.Spacing()
+        local cancelClicked, startClicked = drawModalActions("Start chat", canStart, false)
+        if cancelClicked then
+            state.showNewContactDialog = false
+            imgui.CloseCurrentPopup()
+        elseif (startClicked or phoneEntered or nameEntered) and canStart then
+            if name == "" then
+                name = "Contact " .. phone
+            end
+
+            local serverKey = getCurrentServerKey()
+            if serverKey then
+                local server = getOrCreateServer(serverKey)
+                if not server.contacts[phone] then
+                    server.contacts[phone] = {
+                        name = name,
+                        phone = phone,
+                        messages = {},
+                        lastMessage = nil,
+                        lastTimestamp = 0
+                    }
+                    updateContactCache(serverKey, nil, name, nil, phone)
+                    saveData()
+                end
+
+                state.contacts = getContactsList(serverKey)
+                for _, contact in ipairs(state.contacts) do
+                    if contact.phone == phone then
+                        state.selectedContact = contact
+                        break
+                    end
+                end
+                state.scrollToBottom = true
+            end
+
             state.showNewContactDialog = false
             imgui.CloseCurrentPopup()
         end
-        
-        imgui.SameLine()
-        imgui.SetCursorPosX(scaled(350) / 2 + scaled(10))
-        
-        local startClicked = helpers.drawStyledButton(imgui, "Start Chat", imgui.ImVec2(btnWidth, scaled(30)), {
-            button = CONFIG.colors.primary,
-            hovered = CONFIG.colors.primaryHover
-        })
-        
-        if startClicked or phoneEntered or nameEntered then
-            local phone = ffi.string(state.newContactPhone):gsub("%s+", "")
-            local name = ffi.string(state.newContactName):gsub("^%s*", ""):gsub("%s*$", "")
-            
-            if phone ~= "" then
-
-                if name == "" then
-                    name = "Contact " .. phone
-                end
-                
-                local serverKey = getCurrentServerKey()
-                if serverKey then
-
-                    local server = getOrCreateServer(serverKey)
-                    if not server.contacts[phone] then
-                        server.contacts[phone] = {
-                            name = name,
-                            phone = phone,
-                            messages = {},
-                            lastMessage = nil,
-                            lastTimestamp = 0
-                        }
-
-                        updateContactCache(serverKey, nil, name, nil, phone)
-                        saveData()
-                    end
-                    
-
-                    state.contacts = getContactsList(serverKey)
-                    for _, c in ipairs(state.contacts) do
-                        if c.phone == phone then
-                            state.selectedContact = c
-                            break
-                        end
-                    end
-                    
-                    state.scrollToBottom = true
-                end
-                
-                state.showNewContactDialog = false
-                imgui.CloseCurrentPopup()
-            end
-        end
-        
-
-        dlgStyle.FramePadding = imgui.ImVec2(oldDlgFramePadding[1], oldDlgFramePadding[2])
         imgui.EndPopup()
     end
+    popMessengerModalStyle()
 end
 
 M.drawDeleteConfirmDialog = function()
     if not state.showDeleteConfirmDialog then return end
-    
-    helpers.centerDialog(imgui, scaled, 350, 150)
-    
-    if imgui.BeginPopupModal("Confirm Delete", nil, imgui.WindowFlags.AlwaysAutoResize) then
+
+    helpers.centerDialog(imgui, scaled, 380, 235)
+    pushMessengerModalStyle()
+    if imgui.BeginPopupModal("Confirm Delete", nil, messengerModalFlags()) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
-        imgui.TextColored(CONFIG.colors.textDark, "Delete Contact?")
-        imgui.Spacing()
-        
+        drawModalHeading("Delete this conversation?", "The contact and message history will be removed.")
+
         local name = cp1251_to_utf8(state.deleteContactName or "")
         local phone = state.deleteContactPhone or ""
-        imgui.TextColored(CONFIG.colors.textGray, "Are you sure you want to delete")
-        imgui.TextColored(CONFIG.colors.textDark, name .. " (" .. phone .. ")")
-        imgui.TextColored(CONFIG.colors.textGray, "This action cannot be undone.")
-        
+        drawContactSummary(name, phone)
         imgui.Spacing()
-        imgui.Spacing()
-        
+        imgui.TextColored(imgui.ImVec4(0.9, 0.3, 0.3, 1.0), "This action cannot be undone.")
 
-        local btnWidth = scaled(100)
-        imgui.SetCursorPosX(scaled(350) / 2 - btnWidth - scaled(10))
-        
-        if imgui.Button("Cancel", imgui.ImVec2(btnWidth, scaled(30))) then
+        imgui.Spacing()
+        imgui.Spacing()
+        local cancelClicked, deleteClicked = drawModalActions("Delete", phone ~= "", true)
+        if cancelClicked then
             state.showDeleteConfirmDialog = false
             state.deleteContactName = ""
             state.deleteContactPhone = ""
             imgui.CloseCurrentPopup()
-        end
-        
-        imgui.SameLine()
-        imgui.SetCursorPosX(scaled(350) / 2 + scaled(10))
-        
-        if helpers.drawStyledButton(imgui, "Delete", imgui.ImVec2(btnWidth, scaled(30)), {
-            button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
-            hovered = imgui.ImVec4(1.0, 0.4, 0.4, 1.0)
-        }) then
-
-            if state.deleteContactPhone ~= "" then
-                deleteContact(state.deleteContactPhone)
-
-                local serverKey = getCurrentServerKey()
-                if serverKey then
-                    state.contacts = getContactsList(serverKey)
-
-                    state.filteredContacts = filterContacts(ffi.string(state.searchText))
-                end
+        elseif deleteClicked then
+            deleteContact(phone)
+            local serverKey = getCurrentServerKey()
+            if serverKey then
+                state.contacts = getContactsList(serverKey)
+                state.filteredContacts = filterContacts(ffi.string(state.searchText))
             end
             state.showDeleteConfirmDialog = false
             state.deleteContactName = ""
             state.deleteContactPhone = ""
             imgui.CloseCurrentPopup()
         end
-        
         imgui.EndPopup()
     end
+    popMessengerModalStyle()
 end
 
 M.drawEditContactDialog = function()
     if not state.showEditContactDialog then return end
-    
-    helpers.centerDialog(imgui, scaled, 350, 200)
-    
-    if imgui.BeginPopupModal("Edit Contact", nil, imgui.WindowFlags.AlwaysAutoResize) then
-        imgui.SetWindowFontScale(CONFIG.fontScale)
-        
-        -- Adjust input frame padding to match dialog style
-        local inputHeight = scaled(30)
-        local fontSize = imgui.GetFontSize()
-        local framePaddingY = math.max(4, (inputHeight - fontSize) / 2)
-        local editDlgStyle = imgui.GetStyle()
-        local oldEditFramePadding = { editDlgStyle.FramePadding.x, editDlgStyle.FramePadding.y }
-        editDlgStyle.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
-        
-        imgui.TextColored(CONFIG.colors.textDark, "Edit Contact")
-        imgui.Spacing()
-        
-        imgui.TextColored(CONFIG.colors.textGray, "Phone Number")
-        imgui.SetNextItemWidth(scaled(300))
-        local phoneEntered = imgui.InputText("##editphone", state.editContactPhone, 32, imgui.InputTextFlags.EnterReturnsTrue)
-        
-        imgui.Spacing()
-        imgui.TextColored(CONFIG.colors.textGray, "Name")
-        imgui.SetNextItemWidth(scaled(300))
-        local nameEntered = imgui.InputText("##editname", state.editContactName, 64, imgui.InputTextFlags.EnterReturnsTrue)
-        
-        imgui.Spacing()
-        imgui.Spacing()
-        
 
-        local btnWidth = scaled(100)
-        imgui.SetCursorPosX(scaled(350) / 2 - btnWidth - scaled(10))
-        
-        if imgui.Button("Cancel", imgui.ImVec2(btnWidth, scaled(30))) then
+    helpers.centerDialog(imgui, scaled, 380, 270)
+    pushMessengerModalStyle()
+    if imgui.BeginPopupModal("Edit Contact", nil, messengerModalFlags()) then
+        imgui.SetWindowFontScale(CONFIG.fontScale)
+        drawModalHeading("Contact details", "Update the name or phone number for this chat.")
+
+        local phoneEntered = drawMessengerInput("##editphone", "Phone number", "Enter phone number", state.editContactPhone, 32)
+        imgui.Spacing()
+        local nameEntered = drawMessengerInput("##editname", "Contact name", "Enter contact name", state.editContactName, 64)
+
+        local newPhone = ffi.string(state.editContactPhone):gsub("%s+", "")
+        local newName = ffi.string(state.editContactName):gsub("^%s*", ""):gsub("%s*$", "")
+        local canSave = newPhone ~= "" and newName ~= "" and state.selectedContact ~= nil
+
+        imgui.Spacing()
+        imgui.Spacing()
+        local cancelClicked, saveClicked = drawModalActions("Save changes", canSave, false)
+        if cancelClicked then
             state.showEditContactDialog = false
             imgui.CloseCurrentPopup()
-        end
-        
-        imgui.SameLine()
-        imgui.SetCursorPosX(scaled(350) / 2 + scaled(10))
-        
-        local saveClicked = helpers.drawStyledButton(imgui, "Save", imgui.ImVec2(btnWidth, scaled(30)), {
-            button = CONFIG.colors.primary,
-            hovered = CONFIG.colors.primaryHover
-        })
-        
-        if saveClicked or phoneEntered or nameEntered then
-            local newPhone = ffi.string(state.editContactPhone):gsub("%s+", "")
-            local newName = ffi.string(state.editContactName):gsub("^%s*", ""):gsub("%s*$", "")
-            
-            if newPhone ~= "" and newName ~= "" and state.selectedContact then
-                local serverKey = getCurrentServerKey()
-                if serverKey and smsData.servers[serverKey] then
-                    local oldPhone = state.selectedContact.phone
-                    local contact = smsData.servers[serverKey].contacts[oldPhone]
-                    
-                    if contact then
-                        local oldName = contact.name
-                        
+        elseif (saveClicked or phoneEntered or nameEntered) and canSave then
+            local serverKey = getCurrentServerKey()
+            if serverKey and smsData.servers[serverKey] then
+                local oldPhone = state.selectedContact.phone
+                local contact = smsData.servers[serverKey].contacts[oldPhone]
+                if contact then
+                    local oldName = contact.name
+                    if oldPhone ~= newPhone then
+                        smsData.servers[serverKey].contacts[newPhone] = contact
+                        smsData.servers[serverKey].contacts[oldPhone] = nil
+                        contact.phone = newPhone
+                    end
+                    contact.name = newName
+                    updateContactCache(serverKey, oldName, newName, oldPhone, newPhone)
+                    saveData()
 
-                        if oldPhone ~= newPhone then
-
-                            smsData.servers[serverKey].contacts[newPhone] = contact
-
-                            smsData.servers[serverKey].contacts[oldPhone] = nil
-
-                            contact.phone = newPhone
-                        end
-                        
-
-                        contact.name = newName
-                        
-
-                        updateContactCache(serverKey, oldName, newName, oldPhone, newPhone)
-                        
-                        saveData()
-                        
-
-                        state.contacts = getContactsList(serverKey)
-                        for _, c in ipairs(state.contacts) do
-                            if c.phone == newPhone then
-                                state.selectedContact = c
-                                break
-                            end
+                    state.contacts = getContactsList(serverKey)
+                    for _, updatedContact in ipairs(state.contacts) do
+                        if updatedContact.phone == newPhone then
+                            state.selectedContact = updatedContact
+                            break
                         end
                     end
                 end
-                
-                state.showEditContactDialog = false
-                imgui.CloseCurrentPopup()
             end
-        end
-        
 
-        editDlgStyle.FramePadding = imgui.ImVec2(oldEditFramePadding[1], oldEditFramePadding[2])
+            state.showEditContactDialog = false
+            imgui.CloseCurrentPopup()
+        end
         imgui.EndPopup()
     end
+    popMessengerModalStyle()
 end
 
 local function drawSettingsSection(label)
