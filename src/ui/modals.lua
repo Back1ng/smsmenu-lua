@@ -297,114 +297,214 @@ M.drawEditContactDialog = function()
     end
 end
 
+local function drawSettingsSection(label)
+    imgui.TextColored(CONFIG.colors.textGray, label)
+    imgui.Spacing()
+end
+
+local function drawSettingsToggle(id, title, description, value)
+    local width = imgui.GetContentRegionAvail().x
+    local height = scaled(52)
+    local cursor = imgui.GetCursorScreenPos()
+    local clicked = imgui.InvisibleButton(id, imgui.ImVec2(width, height))
+    local hovered = imgui.IsItemHovered()
+    local surface = hovered and CONFIG.colors.selected or CONFIG.colors.searchBg
+    local drawList = imgui.GetWindowDrawList()
+
+    drawList:AddRectFilled(
+        cursor,
+        imgui.ImVec2(cursor.x + width, cursor.y + height),
+        imgui.ColorConvertFloat4ToU32(surface),
+        scaled(9)
+    )
+    drawList:AddText(
+        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(8)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textDark),
+        title
+    )
+    drawList:AddText(
+        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(29)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+        description
+    )
+
+    local trackWidth = scaled(36)
+    local trackHeight = scaled(20)
+    local trackLeft = cursor.x + width - trackWidth - scaled(12)
+    local trackTop = cursor.y + (height - trackHeight) / 2
+    local trackColor = value and CONFIG.colors.primary or CONFIG.colors.border
+    drawList:AddRectFilled(
+        imgui.ImVec2(trackLeft, trackTop),
+        imgui.ImVec2(trackLeft + trackWidth, trackTop + trackHeight),
+        imgui.ColorConvertFloat4ToU32(trackColor),
+        trackHeight / 2
+    )
+
+    local knobRadius = scaled(8)
+    local knobX = value and (trackLeft + trackWidth - scaled(10)) or (trackLeft + scaled(10))
+    drawList:AddCircleFilled(
+        imgui.ImVec2(knobX, trackTop + trackHeight / 2),
+        knobRadius,
+        imgui.ColorConvertFloat4ToU32(imgui.ImVec4(1, 1, 1, 1)),
+        16
+    )
+
+    return clicked
+end
+
+local function drawSoundSelector()
+    local width = imgui.GetContentRegionAvail().x
+    local height = scaled(46)
+    local cursor = imgui.GetCursorScreenPos()
+    local clicked = imgui.InvisibleButton("##soundselector", imgui.ImVec2(width, height))
+    local hovered = imgui.IsItemHovered()
+    local surface = hovered and CONFIG.colors.selected or CONFIG.colors.searchBg
+    local drawList = imgui.GetWindowDrawList()
+
+    drawList:AddRectFilled(
+        cursor,
+        imgui.ImVec2(cursor.x + width, cursor.y + height),
+        imgui.ColorConvertFloat4ToU32(surface),
+        scaled(9)
+    )
+    drawList:AddText(
+        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(7)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textDark),
+        "Alert sound"
+    )
+    drawList:AddText(
+        imgui.ImVec2(cursor.x + scaled(12), cursor.y + scaled(26)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+        CONFIG.currentSound or "None"
+    )
+
+    local chevronX = cursor.x + width - scaled(17)
+    local chevronY = cursor.y + height / 2
+    local chevronColor = imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray)
+    drawList:AddLine(
+        imgui.ImVec2(chevronX - scaled(4), chevronY - scaled(2)),
+        imgui.ImVec2(chevronX, chevronY + scaled(2)),
+        chevronColor,
+        scaled(1.5)
+    )
+    drawList:AddLine(
+        imgui.ImVec2(chevronX, chevronY + scaled(2)),
+        imgui.ImVec2(chevronX + scaled(4), chevronY - scaled(2)),
+        chevronColor,
+        scaled(1.5)
+    )
+
+    if clicked and #ALERT_SOUNDS > 0 then
+        imgui.OpenPopup("##soundpicker")
+    end
+
+    local popupHeight = scaled(math.min(220, #ALERT_SOUNDS * 34 + 16))
+    imgui.SetNextWindowSize(imgui.ImVec2(width, popupHeight), imgui.Cond.Always)
+    imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
+    imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
+    if imgui.BeginPopup("##soundpicker") then
+        for i, sound in ipairs(ALERT_SOUNDS) do
+            local isSelected = sound == CONFIG.currentSound
+            local colors = isSelected and {
+                button = CONFIG.colors.selected,
+                hovered = CONFIG.colors.selected,
+                active = CONFIG.colors.border,
+                text = CONFIG.colors.primary
+            } or {
+                button = CONFIG.colors.background,
+                hovered = CONFIG.colors.searchBg,
+                active = CONFIG.colors.selected,
+                text = CONFIG.colors.textDark
+            }
+            if helpers.drawStyledButton(imgui, sound .. "##soundoption" .. i, imgui.ImVec2(imgui.GetContentRegionAvail().x, scaled(28)), colors) then
+                CONFIG.currentSound = sound
+                saveSettings()
+                playAlertSound()
+                imgui.CloseCurrentPopup()
+            end
+        end
+        imgui.EndPopup()
+    end
+    imgui.PopStyleColor(2)
+end
+
 M.drawSettingsDialog = function()
     if not state.showSettingsDialog then return end
-    
-    helpers.centerDialog(imgui, scaled, 400, 480)
-    
-    if imgui.BeginPopupModal("Settings", nil, imgui.WindowFlags.AlwaysAutoResize) then
+
+    helpers.centerDialog(imgui, scaled, 400, 410)
+    imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
+    imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
+
+    local flags = imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse
+    if imgui.BeginPopupModal("Settings", nil, flags) then
         imgui.SetWindowFontScale(CONFIG.fontScale)
-        imgui.TextColored(CONFIG.colors.textDark, "Notification Settings")
-        imgui.Spacing()
-        
 
-        local soundEnabled = imgui.new.bool(CONFIG.soundEnabled)
-        if imgui.Checkbox("Enable sound notifications", soundEnabled) then
-            CONFIG.soundEnabled = soundEnabled[0]
+        drawSettingsSection("NOTIFICATIONS")
+        if drawSettingsToggle(
+            "##soundenabled",
+            "Sound notifications",
+            "Play a sound for new messages",
+            CONFIG.soundEnabled
+        ) then
+            CONFIG.soundEnabled = not CONFIG.soundEnabled
             saveSettings()
         end
-        
 
         imgui.Spacing()
-        local hideSMS = imgui.new.bool(CONFIG.hideSMSFromChat)
-        if imgui.Checkbox("Hide SMS messages from game chat", hideSMS) then
-            CONFIG.hideSMSFromChat = hideSMS[0]
+        if drawSettingsToggle(
+            "##hidesms",
+            "Messenger-only SMS",
+            "Hide SMS messages from game chat",
+            CONFIG.hideSMSFromChat
+        ) then
+            CONFIG.hideSMSFromChat = not CONFIG.hideSMSFromChat
             saveSettings()
         end
-        imgui.TextColored(CONFIG.colors.textGray, "SMS will only appear in this messenger")
-        
-        imgui.Spacing()
-        imgui.Separator()
-        imgui.Spacing()
-        
 
-        imgui.TextColored(CONFIG.colors.textGray, "Alert Sound")
-        
+        imgui.Spacing()
+        imgui.Spacing()
+        drawSettingsSection("SOUND")
         if #ALERT_SOUNDS > 0 then
-
-            imgui.TextColored(CONFIG.colors.textGray, "Select sound (" .. #ALERT_SOUNDS .. " found):")
-            imgui.TextColored(CONFIG.colors.textDark, "Current: " .. (CONFIG.currentSound or "None"))
+            drawSoundSelector()
             imgui.Spacing()
-            
-            for i, sound in ipairs(ALERT_SOUNDS) do
-                local isSelected = (sound == CONFIG.currentSound)
-                
-                local buttonColors = isSelected and {
-                    button = CONFIG.colors.primary,
-                    hovered = CONFIG.colors.primaryHover,
-                    text = imgui.ImVec4(1, 1, 1, 1)
-                } or {
-                    button = CONFIG.colors.searchBg,
-                    hovered = CONFIG.colors.selected,
-                    text = CONFIG.colors.textDark
-                }
-                
-                if helpers.drawStyledButton(imgui, sound .. "##sound" .. i, imgui.ImVec2(scaled(200), scaled(25)), buttonColors) then
-                    CONFIG.currentSound = sound
-                    saveSettings()
-
-                    playAlertSound()
-                end
-                
-                if i < #ALERT_SOUNDS then
-                    imgui.Spacing()
-                end
-            end
-            
-            imgui.Spacing()
-            
-
-            if helpers.drawStyledButton(imgui, "Test Sound", imgui.ImVec2(scaled(200), scaled(30)), {
-                button = imgui.ImVec4(0.2, 0.7, 0.3, 1.0),
-                hovered = imgui.ImVec4(0.2, 0.8, 0.35, 1.0),
-                text = imgui.ImVec4(1, 1, 1, 1)
+            if helpers.drawStyledButton(imgui, "Play selected sound##testsound", imgui.ImVec2(imgui.GetContentRegionAvail().x, scaled(30)), {
+                button = CONFIG.colors.searchBg,
+                hovered = CONFIG.colors.selected,
+                active = CONFIG.colors.border,
+                text = CONFIG.colors.primary
             }) then
                 playAlertSound()
             end
-            
         else
             imgui.TextColored(CONFIG.colors.textGray, "No sounds found in smsmenu/alerts/")
         end
-        
-        imgui.Spacing()
-        imgui.Spacing()
-        
 
-        imgui.Separator()
         imgui.Spacing()
-        imgui.TextColored(CONFIG.colors.textGray, "Interface Scale")
-        
+        imgui.Spacing()
+        drawSettingsSection("APPEARANCE")
+        imgui.TextColored(CONFIG.colors.textDark, "Interface scale")
         local fontScale = imgui.new.float(CONFIG.fontScale)
-        imgui.SetNextItemWidth(scaled(250))
+        imgui.SetNextItemWidth(imgui.GetContentRegionAvail().x)
         if imgui.SliderFloat("##fontscale", fontScale, 0.8, 1.5, "%.1fx") then
             CONFIG.fontScale = fontScale[0]
             saveSettings()
         end
-        imgui.TextColored(CONFIG.colors.textGray, "Adjust UI text size (0.8x - 1.5x)")
-        
-        imgui.Spacing()
-        imgui.Spacing()
-        
 
-        local btnWidth = scaled(100)
-        imgui.SetCursorPosX((scaled(400) - btnWidth) / 2)
-        if imgui.Button("Close", imgui.ImVec2(btnWidth, scaled(30))) then
+        imgui.Spacing()
+        imgui.Spacing()
+        if helpers.drawStyledButton(imgui, "Done##closesettings", imgui.ImVec2(imgui.GetContentRegionAvail().x, scaled(32)), {
+            button = CONFIG.colors.primary,
+            hovered = CONFIG.colors.primaryHover,
+            active = CONFIG.colors.primaryHover,
+            text = CONFIG.colors.textLight
+        }) then
             state.showSettingsDialog = false
             imgui.CloseCurrentPopup()
         end
-        
+
         imgui.EndPopup()
     end
+    imgui.PopStyleColor(2)
 end
 
 return M
