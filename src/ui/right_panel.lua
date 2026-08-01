@@ -61,7 +61,7 @@ local function drawMessageTime(imgui, timeStr, bubbleX, bubbleWidth, bubbleHeigh
     local timeSize = imgui.CalcTextSize(timeStr)
     local timeX = isOutgoing and (bubbleX + bubbleWidth - timeSize.x - scaled(2)) or (bubbleX + scaled(2))
     local timeY = cursorPosY + bubbleHeight + scaled(3)
-    
+
     imgui.SetCursorPos(imgui.ImVec2(timeX, timeY))
     imgui.TextColored(CONFIG.colors.textGray, timeStr)
 end
@@ -100,32 +100,79 @@ local function formatDateSeparator(timestamp)
     return tostring(messageDate.day) .. " " .. monthName
 end
 
-local function drawDateSeparator(imgui, childDrawList, cursorScreenPos, cursorPosY, rightPanelWidth, label, scaled, CONFIG)
+local function drawDateSeparator(imgui, childDrawList, cursorScreenPos, rightPanelWidth, label, scaled, CONFIG)
     if label == "" then return end
 
     local labelSize = imgui.CalcTextSize(label)
-    local labelX = (rightPanelWidth - labelSize.x) / 2
-    local labelY = cursorPosY + scaled(9)
-    local lineY = cursorScreenPos.y + scaled(18)
-    local linePadding = scaled(18)
-    local labelPadding = scaled(10)
-    local lineColor = imgui.ColorConvertFloat4ToU32(CONFIG.colors.border)
+    local pillWidth = labelSize.x + scaled(20)
+    local pillHeight = labelSize.y + scaled(8)
+    local pillX = (rightPanelWidth - pillWidth) / 2
+    local pillY = cursorScreenPos.y + scaled(7)
 
-    childDrawList:AddLine(
-        imgui.ImVec2(cursorScreenPos.x + linePadding, lineY),
-        imgui.ImVec2(cursorScreenPos.x + labelX - labelPadding, lineY),
-        lineColor,
-        1.0
+    childDrawList:AddRectFilled(
+        imgui.ImVec2(cursorScreenPos.x + pillX, pillY),
+        imgui.ImVec2(cursorScreenPos.x + pillX + pillWidth, pillY + pillHeight),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.searchBg),
+        pillHeight / 2
     )
-    childDrawList:AddLine(
-        imgui.ImVec2(cursorScreenPos.x + labelX + labelSize.x + labelPadding, lineY),
-        imgui.ImVec2(cursorScreenPos.x + rightPanelWidth - linePadding, lineY),
-        lineColor,
-        1.0
+    childDrawList:AddText(
+        imgui.ImVec2(cursorScreenPos.x + pillX + scaled(10), pillY + scaled(4)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+        label
+    )
+end
+
+local function drawConversationPlaceholder(drawList, areaMin, areaMax, title, subtitle)
+    local centerX = (areaMin.x + areaMax.x) / 2
+    local centerY = (areaMin.y + areaMax.y) / 2 - scaled(18)
+    local iconColor = imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary)
+    local iconSurface = imgui.ImVec4(
+        CONFIG.colors.primary.x,
+        CONFIG.colors.primary.y,
+        CONFIG.colors.primary.z,
+        0.12
     )
 
-    imgui.SetCursorPos(imgui.ImVec2(labelX, labelY))
-    imgui.TextColored(CONFIG.colors.textGray, label)
+    drawList:AddCircleFilled(
+        imgui.ImVec2(centerX, centerY - scaled(22)),
+        scaled(24),
+        imgui.ColorConvertFloat4ToU32(iconSurface),
+        24
+    )
+    drawList:AddRect(
+        imgui.ImVec2(centerX - scaled(10), centerY - scaled(29)),
+        imgui.ImVec2(centerX + scaled(10), centerY - scaled(16)),
+        iconColor,
+        scaled(5),
+        0,
+        scaled(1.6)
+    )
+    drawList:AddLine(
+        imgui.ImVec2(centerX - scaled(5), centerY - scaled(16)),
+        imgui.ImVec2(centerX - scaled(8), centerY - scaled(12)),
+        iconColor,
+        scaled(1.6)
+    )
+    for x = -5, 5, 5 do
+        drawList:AddCircleFilled(
+            imgui.ImVec2(centerX + scaled(x), centerY - scaled(22.5)),
+            scaled(1.2),
+            iconColor
+        )
+    end
+
+    local titleSize = imgui.CalcTextSize(title)
+    local subtitleSize = imgui.CalcTextSize(subtitle)
+    drawList:AddText(
+        imgui.ImVec2(centerX - titleSize.x / 2, centerY + scaled(12)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textDark),
+        title
+    )
+    drawList:AddText(
+        imgui.ImVec2(centerX - subtitleSize.x / 2, centerY + scaled(34)),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+        subtitle
+    )
 end
 
 local function getStackPosition(prevSameGroup, nextSameGroup)
@@ -141,8 +188,23 @@ local function getStackPosition(prevSameGroup, nextSameGroup)
 end
 
 local function drawEmptyState(rightPanelX, rightPanelWidth, windowSize)
-    imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth / 2 - scaled(100), windowSize.y / 2 - scaled(50)))
-    imgui.TextColored(CONFIG.colors.textGray, "Select a contact to start messaging")
+    local windowPos = imgui.GetWindowPos()
+    local drawList = imgui.GetWindowDrawList()
+    local areaMin = imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y)
+    local areaMax = imgui.ImVec2(windowPos.x + rightPanelX + rightPanelWidth, windowPos.y + windowSize.y)
+
+    drawList:AddRectFilled(
+        areaMin,
+        areaMax,
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.background)
+    )
+    drawList:AddLine(
+        imgui.ImVec2(areaMin.x, windowPos.y),
+        imgui.ImVec2(areaMin.x, windowPos.y + windowSize.y),
+        imgui.ColorConvertFloat4ToU32(CONFIG.colors.border),
+        1.0
+    )
+    drawConversationPlaceholder(drawList, areaMin, areaMax, "Your messages", "Select a contact to start chatting")
 end
 
 local function openEditContactDialog(contact)
@@ -316,10 +378,27 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
         
         local childDrawList = imgui.GetWindowDrawList()
         local messages = contact.messages or {}
+
+        if #messages == 0 then
+            local childPos = imgui.GetWindowPos()
+            local childSize = imgui.GetWindowSize()
+            drawConversationPlaceholder(
+                childDrawList,
+                childPos,
+                imgui.ImVec2(childPos.x + childSize.x, childPos.y + childSize.y),
+                "No messages yet",
+                "Send a message to start the conversation"
+            )
+            imgui.Dummy(imgui.ImVec2(1, math.max(1, messagesHeight - scaled(1))))
+            state.lastScrollMax = 0
+            imgui.EndChild()
+            return
+        end
         
         local totalMessagesHeight = scaled(10)
         local messageLayouts = {}
         local previousDayKey = nil
+        local maxBubbleRatio = rightPanelWidth < scaled(CONFIG.CONSTANTS.UI.MOBILE_BREAKPOINT) and 0.78 or 0.62
         
         for i, msg in ipairs(messages) do
             if type(msg) == "table" then
@@ -328,7 +407,7 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
                 local utf8Text = cp1251_to_utf8(msgText)
 
                 local singleLineSize = imgui.CalcTextSize(utf8Text)
-                local bubbleWidth = math.min(singleLineSize.x + scaled(30), rightPanelWidth * 0.7)
+                local bubbleWidth = math.min(singleLineSize.x + scaled(30), rightPanelWidth * maxBubbleRatio)
                 local availableTextWidth = bubbleWidth - scaled(30)
                 
                 local lines, lineHeight
@@ -339,7 +418,7 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
                     lines, lineHeight = TextMetrics.estimateLines(utf8Text, availableTextWidth, fontScaleMultiplier)
                 end
 
-                local bubbleHeight = (lineHeight * lines) + scaled(3)
+                local bubbleHeight = (lineHeight * lines) + scaled(10)
                 
                 if bubbleWidth < scaled(50) then bubbleWidth = scaled(50) end
                 if bubbleHeight < scaled(25) then bubbleHeight = scaled(25) end
@@ -358,7 +437,7 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
                 local showTime = not nextSameGroup
                 local timeStr = tostring(os.date("%H:%M", tonumber(msg.timestamp) or 0) or "")
                 local timeHeight = showTime and (imgui.CalcTextSize(timeStr).y + scaled(6)) or 0
-                local spacingAfter = showTime and scaled(12) or scaled(4)
+                local spacingAfter = showTime and scaled(12) or scaled(3)
 
                 messageLayouts[i] = {
                     text = msgText,
@@ -403,18 +482,18 @@ local function drawMessagesList(drawList, windowPos, windowSize, rightPanelX, ri
                 local cursorPosY = imgui.GetCursorPosY()
 
                 if messageLayouts[i].dateLabel then
-                    drawDateSeparator(imgui, childDrawList, cursorScreenPos, cursorPosY, rightPanelWidth, messageLayouts[i].dateLabel, scaled, CONFIG)
+                    drawDateSeparator(imgui, childDrawList, cursorScreenPos, rightPanelWidth, messageLayouts[i].dateLabel, scaled, CONFIG)
                     imgui.SetCursorPosY(cursorPosY + scaled(36))
                     cursorScreenPos = imgui.GetCursorScreenPos()
                     cursorPosY = imgui.GetCursorPosY()
                 end
                 
                 drawMessageBubble(childDrawList, imgui, cursorScreenPos, cursorPosY, bubbleX, bubbleWidth, bubbleHeight, bubbleColor, textColor, msgText, fontScaleMultiplier, scaled, TextMetrics, messageLayouts[i].stackPosition)
-                
+
                 if messageLayouts[i].showTime then
                     drawMessageTime(imgui, messageLayouts[i].timeStr, bubbleX, bubbleWidth, bubbleHeight, cursorPosY, isOutgoing, scaled, CONFIG)
                 end
-                
+
                 local timeHeight = messageLayouts[i].showTime and (imgui.CalcTextSize(messageLayouts[i].timeStr).y + scaled(6)) or 0
                 imgui.SetCursorPosY(cursorPosY + bubbleHeight + timeHeight + messageLayouts[i].spacingAfter)
             end
@@ -459,23 +538,42 @@ local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
     local oldMsgFramePadding = { msgStyle.FramePadding.x, msgStyle.FramePadding.y }
     local oldMsgFrameRounding = msgStyle.FrameRounding
     msgStyle.FramePadding = imgui.ImVec2(scaled(10), framePaddingY)
-    msgStyle.FrameRounding = scaled(5)
+    msgStyle.FrameRounding = scaled(7)
     imgui.PushItemWidth(rightPanelWidth - scaled(100))
-    
+
+    local inputScreenPos = imgui.GetCursorScreenPos()
+    imgui.PushStyleColor(imgui.Col.FrameBg, CONFIG.colors.searchBg)
+    imgui.PushStyleColor(imgui.Col.FrameBgHovered, CONFIG.colors.selected)
+    imgui.PushStyleColor(imgui.Col.FrameBgActive, CONFIG.colors.searchBg)
+    imgui.PushStyleColor(imgui.Col.Text, CONFIG.colors.textDark)
     local enterPressed = imgui.InputText("##message", state.messageText, 512, imgui.InputTextFlags.EnterReturnsTrue)
+    local inputActive = imgui.IsItemActive()
+    imgui.PopStyleColor(4)
+
+    local draftMessage = ffi.string(state.messageText)
+    local canSend = draftMessage:gsub("%s+", "") ~= ""
+    if not canSend and not inputActive then
+        local placeholder = "Type a message..."
+        local placeholderSize = imgui.CalcTextSize(placeholder)
+        imgui.GetWindowDrawList():AddText(
+            imgui.ImVec2(
+                inputScreenPos.x + scaled(10),
+                inputScreenPos.y + (sendBtnHeight - placeholderSize.y) / 2
+            ),
+            imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+            placeholder
+        )
+    end
     
     imgui.PopItemWidth()
 
     msgStyle.FramePadding = imgui.ImVec2(oldMsgFramePadding[1], oldMsgFramePadding[2])
     msgStyle.FrameRounding = oldMsgFrameRounding
     
-    if enterPressed then
-        local message = ffi.string(state.messageText)
-        if message:gsub("%s+", "") ~= "" then
-            MessageService.send(contact.phone, message)
-            state.messageText = imgui.new.char[512]("")
-            imgui.SetKeyboardFocusHere(-1)
-        end
+    if enterPressed and canSend then
+        MessageService.send(contact.phone, draftMessage)
+        state.messageText = imgui.new.char[512]("")
+        imgui.SetKeyboardFocusHere(-1)
     end
     
     imgui.SameLine()
@@ -483,15 +581,16 @@ local function drawInputArea(windowSize, rightPanelX, rightPanelWidth, contact)
     
     local btnStyle = imgui.GetStyle()
     local oldBtnRounding = btnStyle.FrameRounding
-    btnStyle.FrameRounding = scaled(5)
+    btnStyle.FrameRounding = scaled(7)
     
     if helpers.drawStyledButton(imgui, "Send##sendbtn", imgui.ImVec2(scaled(75), sendBtnHeight), {
-        button = CONFIG.colors.primary,
-        hovered = CONFIG.colors.primaryHover
+        button = canSend and CONFIG.colors.primary or CONFIG.colors.searchBg,
+        hovered = canSend and CONFIG.colors.primaryHover or CONFIG.colors.searchBg,
+        active = canSend and CONFIG.colors.primaryHover or CONFIG.colors.searchBg,
+        text = canSend and CONFIG.colors.textLight or CONFIG.colors.textGray
     }) then
-        local message = ffi.string(state.messageText)
-        if message:gsub("%s+", "") ~= "" then
-            MessageService.send(contact.phone, message)
+        if canSend then
+            MessageService.send(contact.phone, draftMessage)
             state.messageText = imgui.new.char[512]("")
             imgui.SetKeyboardFocusHere(-1)
         end
