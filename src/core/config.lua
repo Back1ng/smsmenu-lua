@@ -53,6 +53,9 @@ local CONFIG = {
     }
 }
 
+-- The active binding is a user setting; F3 remains its default value.
+CONFIG.toggleMenuHotkey = CONFIG.CONSTANTS.HOTKEYS.TOGGLE_MENU
+
 -- Scale UI dimensions proportionally to user-chosen font scale
 local function scaled(value)
     return math.floor(value * CONFIG.fontScale)

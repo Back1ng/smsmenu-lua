@@ -20,6 +20,7 @@ local playAlertSound = nil
 local helpers = nil
 local design = nil
 local i18n = nil
+local hotkeys = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -42,6 +43,7 @@ function M.init(deps)
     helpers = deps.helpers
     design = deps.design
     i18n = deps.i18n
+    hotkeys = deps.hotkeys
 end
 
 local function messengerModalFlags()
@@ -488,10 +490,41 @@ local function drawLanguageSelector()
     style.FrameRounding = oldRounding
 end
 
-M.drawSettingsDialog = function()
-    if not state.showSettingsDialog then return end
+local function drawHotkeySelector()
+    if state.hotkeyCaptureActive then
+        local pressedKey, cancelled = hotkeys.pollCapture()
+        if cancelled then
+            state.hotkeyCaptureActive = false
+        elseif pressedKey then
+            CONFIG.toggleMenuHotkey = pressedKey
+            state.hotkeyCaptureActive = false
+            state.suppressNextToggleHotkeyPress = true
+            saveSettings()
+        end
+    end
 
-    helpers.centerDialog(imgui, scaled, 400, 465)
+    imgui.TextColored(CONFIG.colors.textDark, i18n.t("menu_hotkey"))
+    imgui.TextColored(CONFIG.colors.textGray, i18n.t("menu_hotkey_hint"))
+    imgui.Spacing()
+
+    local label = state.hotkeyCaptureActive
+        and i18n.t("press_hotkey")
+        or hotkeys.getName(CONFIG.toggleMenuHotkey)
+    local colors = state.hotkeyCaptureActive and design.button("primary") or design.button("neutral")
+
+    if helpers.drawStyledButton(imgui, label .. "##togglehotkey", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("DEFAULT")), colors) then
+        state.hotkeyCaptureActive = true
+        hotkeys.beginCapture()
+    end
+end
+
+M.drawSettingsDialog = function()
+    if not state.showSettingsDialog then
+        state.hotkeyCaptureActive = false
+        return
+    end
+
+    helpers.centerDialog(imgui, scaled, 400, 555)
     imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
     imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
 
@@ -538,6 +571,11 @@ M.drawSettingsDialog = function()
 
         imgui.Spacing()
         imgui.Spacing()
+        drawSettingsSection(i18n.t("section_controls"))
+        drawHotkeySelector()
+
+        imgui.Spacing()
+        imgui.Spacing()
         drawSettingsSection(i18n.t("section_appearance"))
         imgui.TextColored(CONFIG.colors.textDark, i18n.t("interface_scale"))
         local fontScale = imgui.new.float(CONFIG.fontScale)
@@ -553,6 +591,7 @@ M.drawSettingsDialog = function()
         imgui.Spacing()
         imgui.Spacing()
         if helpers.drawStyledButton(imgui, i18n.t("done") .. "##closesettings", imgui.ImVec2(imgui.GetContentRegionAvail().x, design.controlHeight("DEFAULT")), design.button("primary")) then
+            state.hotkeyCaptureActive = false
             state.showSettingsDialog = false
             imgui.CloseCurrentPopup()
         end

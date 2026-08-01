@@ -47,6 +47,7 @@ local core_state = require "src.core.state"
 local core_audio = require "src.core.audio"
 local core_storage = require "src.core.storage"
 local core_i18n = require "src.core.i18n"
+local core_hotkeys = require "src.core.hotkeys"
 
 local CONFIG = core_config.CONFIG
 local scaled = core_config.scaled
@@ -218,7 +219,8 @@ function main()
         drawSettingsDialog = ui_modals.drawSettingsDialog,
         helpers = ui_helpers,
         design = ui_style,
-        i18n = core_i18n
+        i18n = core_i18n,
+        hotkeys = core_hotkeys
     }
     ui_style.init(uiDeps)
     ui_modals.init(uiDeps)
@@ -233,6 +235,9 @@ function main()
         if not state or not state.windowOpen then return end
         local wasOpen = state.windowOpen[0]
         state.windowOpen[0] = not state.windowOpen[0]
+        if not state.windowOpen[0] then
+            state.hotkeyCaptureActive = false
+        end
         if state.windowOpen[0] then
             -- Reset window animation
             state.windowOpenAnim = 0.0
@@ -286,8 +291,14 @@ function main()
         wait(0)
         
 
-        if isKeyJustPressed(CONFIG.CONSTANTS.HOTKEYS.TOGGLE_MENU) and not sampIsChatInputActive() and not sampIsDialogActive() then
-            _G.toggleSMSMenu()
+        if not state.hotkeyCaptureActive then
+            if state.suppressNextToggleHotkeyPress then
+                if not isKeyJustPressed(CONFIG.toggleMenuHotkey) then
+                    state.suppressNextToggleHotkeyPress = false
+                end
+            elseif isKeyJustPressed(CONFIG.toggleMenuHotkey) and not sampIsChatInputActive() and not sampIsDialogActive() then
+                _G.toggleSMSMenu()
+            end
         end
         
 

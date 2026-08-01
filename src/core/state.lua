@@ -26,6 +26,8 @@ function M.createState()
         deleteContactName = "",
         deleteContactPhone = "",
         showSettingsDialog = false,
+        hotkeyCaptureActive = false,
+        suppressNextToggleHotkeyPress = false,
         lastScrollMax = 0,
         -- Animation states
         messageAnimations = {}, -- phone -> { startTime, duration }

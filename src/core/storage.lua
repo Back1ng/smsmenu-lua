@@ -78,6 +78,9 @@ function M.loadSettings()
                 if data.currentSound then CONFIG.currentSound = data.currentSound end
                 if data.hideSMSFromChat ~= nil then CONFIG.hideSMSFromChat = data.hideSMSFromChat end
                 if data.fontScale ~= nil then CONFIG.fontScale = math.max(0.8, math.min(1.5, data.fontScale)) end
+                if type(data.toggleMenuHotkey) == "number" and data.toggleMenuHotkey >= 1 and data.toggleMenuHotkey <= 254 then
+                    CONFIG.toggleMenuHotkey = math.floor(data.toggleMenuHotkey)
+                end
             end
         end
     end
@@ -94,7 +97,8 @@ function M.saveSettings()
             soundEnabled = CONFIG.soundEnabled,
             currentSound = CONFIG.currentSound,
             hideSMSFromChat = CONFIG.hideSMSFromChat,
-            fontScale = CONFIG.fontScale
+            fontScale = CONFIG.fontScale,
+            toggleMenuHotkey = CONFIG.toggleMenuHotkey
         }, { indent = true }))
         file:close()
     end
