@@ -373,13 +373,26 @@ M.drawLeftPanel = function()
         
         local innerDrawList = imgui.GetWindowDrawList()
         
-        local contactsToShow = state.filteredContacts
-        if #contactsToShow == 0 then
-            contactsToShow = state.contacts
-        end
-        
-        for i, contact in ipairs(contactsToShow) do
-            drawContactItem(i, contact, innerDrawList, windowPos, panelWidth)
+        local searchText = ffi.string(state.searchText)
+        local contactsToShow = searchText == "" and state.contacts or state.filteredContacts
+
+        if searchText ~= "" and #contactsToShow == 0 then
+            local message = i18n.t("nothing_found")
+            local messageSize = imgui.CalcTextSize(message)
+            local childPos = imgui.GetWindowPos()
+            local childSize = imgui.GetWindowSize()
+            innerDrawList:AddText(
+                imgui.ImVec2(
+                    childPos.x + (childSize.x - messageSize.x) / 2,
+                    childPos.y + (childSize.y - messageSize.y) / 2
+                ),
+                imgui.ColorConvertFloat4ToU32(CONFIG.colors.textGray),
+                message
+            )
+        else
+            for i, contact in ipairs(contactsToShow) do
+                drawContactItem(i, contact, innerDrawList, windowPos, panelWidth)
+            end
         end
     
         imgui.EndChild()
