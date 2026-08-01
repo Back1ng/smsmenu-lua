@@ -43,7 +43,7 @@ local CONFIG = {
             PADDING = { SMALL = 5, MEDIUM = 10, LARGE = 15 },
             AVATAR = { SMALL = 15, MEDIUM = 18 },
             BUTTONS = { ACTION_W = 42, ACTION_H = 26, ICON = 28 },
-            PANEL = { LIST_ITEM_HEIGHT = 70 }
+            PANEL = { LIST_ITEM_HEIGHT = 64 }
         }
     }
 }

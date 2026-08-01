@@ -68,20 +68,20 @@ local function drawAvatar(drawList, scaled, avatarPos, initial, isOnline, itemAl
 end
 
 local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i, contact, contactName, timeStr, itemAlpha, CONFIG)
-    imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(10)))
+    imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(8)))
     local isUnread = (contact.unreadCount or 0) > 0
-    local nameColor = isUnread and CONFIG.colors.primary or CONFIG.colors.textDark
+    local nameColor = CONFIG.colors.textDark
     local nameColorWithAlpha = imgui.ImVec4(nameColor.x, nameColor.y, nameColor.z, itemAlpha)
     imgui.TextColored(nameColorWithAlpha, contactName)
     if isUnread then
-        imgui.SetCursorPos(imgui.ImVec2(scaled(61) + slideX, (i - 1) * itemHeight + scaled(10)))
+        imgui.SetCursorPos(imgui.ImVec2(scaled(61) + slideX, (i - 1) * itemHeight + scaled(8)))
         imgui.TextColored(nameColorWithAlpha, contactName)
     end
     
-    imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(30)))
+    imgui.SetCursorPos(imgui.ImVec2(scaled(60) + slideX, (i - 1) * itemHeight + scaled(29)))
     local previewRaw = tostring(contact.lastMessage or "No messages")
-    if #previewRaw > 28 then
-        previewRaw = previewRaw:sub(1, 28) .. "..."
+    if #previewRaw > 24 then
+        previewRaw = previewRaw:sub(1, 24) .. "..."
     end
     local preview = cp1251_to_utf8(previewRaw)
     local previewColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
@@ -89,16 +89,16 @@ local function drawContactInfo(imgui, scaled, panelWidth, itemHeight, slideX, i,
     
     if timeStr ~= "" then
         local timeSize = imgui.CalcTextSize(timeStr)
-        imgui.SetCursorPos(imgui.ImVec2(panelWidth - timeSize.x - scaled(15), (i - 1) * itemHeight + scaled(10)))
+        imgui.SetCursorPos(imgui.ImVec2(panelWidth - timeSize.x - scaled(15), (i - 1) * itemHeight + scaled(8)))
         local timeColorWithAlpha = imgui.ImVec4(CONFIG.colors.textGray.x, CONFIG.colors.textGray.y, CONFIG.colors.textGray.z, itemAlpha)
         imgui.TextColored(timeColorWithAlpha, timeStr)
     end
 end
 
-local function drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
+local function drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, CONFIG)
     local countStr = unreadCount > 99 and "99+" or tostring(unreadCount)
     local countSize = imgui.CalcTextSize(countStr)
-    local badgeHeight = scaled(20)
+    local badgeHeight = scaled(18)
     local badgeRadius = badgeHeight / 2
     local badgeWidth = math.max(scaled(22), countSize.x + scaled(14))
     local badgeRight = windowPos.x + panelWidth - scaled(12) - slideX
@@ -106,15 +106,6 @@ local function drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos,
     local badgeCenterY = itemPos.y + itemHeight / 2
     local badgeTop = badgeCenterY - badgeHeight / 2
     local badgeBottom = badgeCenterY + badgeHeight / 2
-
-    local haloColor = imgui.ColorConvertFloat4ToU32(imgui.ImVec4(
-        CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z, pulseAlpha
-    ))
-    drawList:AddCircleFilled(
-        imgui.ImVec2(badgeRight - badgeRadius, badgeCenterY),
-        badgeRadius * pulseScale * 1.45,
-        haloColor
-    )
 
     local badgeColor = imgui.ColorConvertFloat4ToU32(
         imgui.ImVec4(CONFIG.colors.primary.x, CONFIG.colors.primary.y, CONFIG.colors.primary.z, itemAlpha)
@@ -272,6 +263,11 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
             itemMax,
             imgui.ColorConvertFloat4ToU32(selectedColor)
         )
+        drawList:AddRectFilled(
+            itemMin,
+            imgui.ImVec2(itemMin.x + scaled(3), itemMax.y),
+            imgui.ColorConvertFloat4ToU32(CONFIG.colors.primary)
+        )
     elseif state.contactHover[i] > 0 then
 
         local rowHover = CONFIG.colors.rowHover or CONFIG.colors.selected
@@ -291,7 +287,10 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
     local slideX = itemSlideOffset
     
 
-    local avatarPos = imgui.ImVec2(itemPos.x + scaled(12) + slideX, itemPos.y + scaled(8))
+    local avatarPos = imgui.ImVec2(
+        itemPos.x + scaled(12) + slideX,
+        itemPos.y + (itemHeight - scaled(36)) / 2
+    )
     local contactNameRaw = tostring(contact.name or "?")
     local contactName = cp1251_to_utf8(contactNameRaw)
     local initial = cp1251_to_utf8(contactNameRaw:sub(1, 1)):upper()
@@ -306,10 +305,7 @@ local function drawContactItem(i, contact, drawList, windowPos, panelWidth)
     -- Unread indicator
     local unreadCount = contact.unreadCount or 0
     if unreadCount > 0 and itemAlpha > 0.5 then
-        local pulseScale = 1.0 + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE
-        local pulseAlpha = (CONFIG.CONSTANTS.ANIMATION.PULSE_BASE_ALPHA + math.sin(state.newMessagePulse * math.pi * 2) * CONFIG.CONSTANTS.ANIMATION.PULSE_SCALE) * itemAlpha
-        
-        drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, pulseScale, pulseAlpha, CONFIG)
+        drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos, itemHeight, slideX, unreadCount, itemAlpha, CONFIG)
     end
     
     -- Click handler
