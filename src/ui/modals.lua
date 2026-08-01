@@ -524,7 +524,7 @@ M.drawSettingsDialog = function()
         return
     end
 
-    helpers.centerDialog(imgui, scaled, 400, 600)
+    helpers.centerDialog(imgui, scaled, 400, 660)
     imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
     imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
 
@@ -540,6 +540,17 @@ M.drawSettingsDialog = function()
             CONFIG.soundEnabled
         ) then
             CONFIG.soundEnabled = not CONFIG.soundEnabled
+            saveSettings()
+        end
+
+        imgui.Spacing()
+        if drawSettingsToggle(
+            "##screennotifications",
+            i18n.t("screen_notifications"),
+            i18n.t("screen_notifications_hint"),
+            CONFIG.screenNotificationsEnabled
+        ) then
+            CONFIG.screenNotificationsEnabled = not CONFIG.screenNotificationsEnabled
             saveSettings()
         end
 

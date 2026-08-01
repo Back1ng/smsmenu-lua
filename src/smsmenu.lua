@@ -32,6 +32,7 @@ local ui_modals = require "src.ui.modals"
 local ui_left_panel = require "src.ui.left_panel"
 local ui_right_panel = require "src.ui.right_panel"
 local ui_window = require "src.ui.window"
+local ui_notifications = require "src.ui.notifications"
 local ui_helpers = require "src.ui.helpers"
 local ui_style = require "src.ui.style"
 local function getFullPath(relativePath)
@@ -175,13 +176,21 @@ function main()
         updateContactCache = updateContactCache,
         getOrCreateServer = SAMPServices.getOrCreateServer
     })
+    ui_notifications.init({
+        imgui = imgui,
+        state = state,
+        CONFIG = CONFIG,
+        scaled = scaled,
+        cp1251_to_utf8 = cp1251_to_utf8
+    })
     ChatHookService.init({
         CONFIG = CONFIG,
         state = state,
         SAMPServices = SAMPServices,
         ContactService = ContactService,
         addMessage = MessageQueue.addMessage,
-        playAlertSound = playAlertSound
+        playAlertSound = playAlertSound,
+        showScreenNotification = ui_notifications.push
     })
     
 
@@ -230,6 +239,7 @@ function main()
     ui_window.init(uiDeps)
     
     ui_window.setup()
+    ui_notifications.setup()
 
     -- Toggle function (available globally for binders)
     _G.toggleSMSMenu = function()

@@ -12,6 +12,7 @@ local CONFIG = {
     language = "ru",
     soundEnabled = true,
     soundVolume = 100, -- notification volume (0 - 100)
+    screenNotificationsEnabled = true, -- show click-through notifications for incoming SMS
     hideSMSFromChat = true, -- hide SMS messages from SAMP chat
     currentSound = "1.wav", -- default sound file
     fontScale = 1.0, -- UI font scale (0.8 - 1.5)

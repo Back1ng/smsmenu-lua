@@ -75,6 +75,7 @@ function M.loadSettings()
                 if data.theme then CONFIG.currentTheme = data.theme end
                 if data.language == "en" or data.language == "ru" then CONFIG.language = data.language end
                 if data.soundEnabled ~= nil then CONFIG.soundEnabled = data.soundEnabled end
+                if data.screenNotificationsEnabled ~= nil then CONFIG.screenNotificationsEnabled = data.screenNotificationsEnabled end
                 if type(data.soundVolume) == "number" and data.soundVolume == data.soundVolume then
                     CONFIG.soundVolume = math.max(0, math.min(100, math.floor(data.soundVolume + 0.5)))
                 else
@@ -100,6 +101,7 @@ function M.saveSettings()
             theme = CONFIG.currentTheme,
             language = CONFIG.language,
             soundEnabled = CONFIG.soundEnabled,
+            screenNotificationsEnabled = CONFIG.screenNotificationsEnabled,
             soundVolume = CONFIG.soundVolume,
             currentSound = CONFIG.currentSound,
             hideSMSFromChat = CONFIG.hideSMSFromChat,

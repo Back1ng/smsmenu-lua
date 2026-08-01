@@ -9,6 +9,7 @@ function ChatHookService.init(deps)
     ChatHookService.ContactService = deps.ContactService
     ChatHookService.addMessage = deps.addMessage
     ChatHookService.playAlertSound = deps.playAlertSound
+    ChatHookService.showScreenNotification = deps.showScreenNotification
 end
 
 function ChatHookService.handleChatMessage(msg)
@@ -23,6 +24,9 @@ function ChatHookService.handleChatMessage(msg)
             ChatHookService.addMessage(serverKey, sender, phone, text, false)
 
             ChatHookService.playAlertSound()
+            if ChatHookService.showScreenNotification then
+                ChatHookService.showScreenNotification(sender, text)
+            end
 
             if ChatHookService.state and ChatHookService.state.windowOpen[0] then
                 ChatHookService.state.contacts = ChatHookService.ContactService.getContactsList(serverKey)
