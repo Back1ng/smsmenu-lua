@@ -12,6 +12,7 @@ local drawDeleteConfirmDialog = nil
 local drawSettingsDialog = nil
 local getCurrentServerKey = nil
 local getContactsList = nil
+local helpers = nil
 
 function M.init(deps)
     imgui = deps.imgui
@@ -26,6 +27,7 @@ function M.init(deps)
     drawSettingsDialog = deps.drawSettingsDialog
     getCurrentServerKey = deps.getCurrentServerKey
     getContactsList = deps.getContactsList
+    helpers = deps.helpers
 end
 
 function M.setup()
@@ -61,17 +63,16 @@ function M.setup()
             end
             
             -- Drawn last so it renders on top of all panels
-            local winPos = imgui.GetWindowPos()
             local winSize = imgui.GetWindowSize()
-            imgui.SetCursorPos(imgui.ImVec2(winSize.x - scaled(40), scaled(12)))
-            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.8, 0.8, 0.8, 1.0))
-            imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
-            imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.8, 0.2, 0.2, 1.0))
-            imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.1, 0.1, 0.1, 1.0))
-            if imgui.Button("X##close", imgui.ImVec2(scaled(32), scaled(26))) then
+            imgui.SetCursorPos(imgui.ImVec2(winSize.x - scaled(40), scaled(10)))
+            if helpers.drawIconButton(imgui, "##close", "close", imgui.ImVec2(scaled(30), scaled(30)), {
+                button = CONFIG.colors.searchBg,
+                hovered = imgui.ImVec4(0.9, 0.3, 0.3, 0.22),
+                active = imgui.ImVec4(0.9, 0.3, 0.3, 0.35),
+                text = CONFIG.colors.textDark
+            }, "Close", scaled(7)) then
                 state.windowOpen[0] = false
             end
-            imgui.PopStyleColor(4)
         end
         
 

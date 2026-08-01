@@ -134,49 +134,50 @@ local function drawUnreadBadge(drawList, scaled, windowPos, panelWidth, itemPos,
     )
 end
 
-local function drawHeader(panelWidth)
+local function drawHeader(panelWidth, isMobile)
     imgui.SetCursorPos(imgui.ImVec2(scaled(15), scaled(15)))
     imgui.TextColored(CONFIG.colors.textDark, "SMS Messenger")
     
 
-    local btnSize = imgui.ImVec2(scaled(28), scaled(28))
-    local themeIcon = CONFIG.currentTheme == "light" and "D" or "L"
-    local themeBtnX = panelWidth - scaled(113)
-    imgui.SetCursorPos(imgui.ImVec2(themeBtnX, scaled(11)))
+    local btnSize = imgui.ImVec2(scaled(30), scaled(30))
+    -- In mobile mode the global close button occupies the rightmost header slot.
+    local closeButtonReserve = isMobile and scaled(36) or 0
+    local themeTooltip = CONFIG.currentTheme == "light" and "Switch to dark theme" or "Switch to light theme"
+    local themeBtnX = panelWidth - scaled(114) - closeButtonReserve
+    imgui.SetCursorPos(imgui.ImVec2(themeBtnX, scaled(10)))
     
-    if helpers.drawStyledButton(imgui, themeIcon .. "##theme", btnSize, {
+    if helpers.drawIconButton(imgui, "##theme", "contrast", btnSize, {
         button = CONFIG.colors.searchBg,
         hovered = CONFIG.colors.selected,
         active = CONFIG.colors.border,
         text = CONFIG.colors.textDark
-    }) then
+    }, themeTooltip, scaled(7)) then
         local newTheme = CONFIG.currentTheme == "light" and "dark" or "light"
         applyTheme(newTheme)
     end
     
     -- Settings button
-    local settingsBtnX = panelWidth - scaled(78)
-    imgui.SetCursorPos(imgui.ImVec2(settingsBtnX, scaled(11)))
-    local soundIcon = CONFIG.soundEnabled and "S" or "M"
-    if helpers.drawStyledButton(imgui, soundIcon .. "##settings", btnSize, {
+    local settingsBtnX = panelWidth - scaled(78) - closeButtonReserve
+    imgui.SetCursorPos(imgui.ImVec2(settingsBtnX, scaled(10)))
+    if helpers.drawIconButton(imgui, "##settings", "settings", btnSize, {
         button = CONFIG.colors.searchBg,
         hovered = CONFIG.colors.selected,
         active = CONFIG.colors.border,
         text = CONFIG.colors.textDark
-    }) then
+    }, "Settings", scaled(7)) then
         state.showSettingsDialog = true
         imgui.OpenPopup("Settings")
     end
     
 
-    local newMsgBtnX = panelWidth - scaled(43)
-    imgui.SetCursorPos(imgui.ImVec2(newMsgBtnX, scaled(11)))
-    if helpers.drawStyledButton(imgui, "+##newmsg", btnSize, {
+    local newMsgBtnX = panelWidth - scaled(42) - closeButtonReserve
+    imgui.SetCursorPos(imgui.ImVec2(newMsgBtnX, scaled(10)))
+    if helpers.drawIconButton(imgui, "##newmsg", "plus", btnSize, {
         button = CONFIG.colors.primary,
         hovered = CONFIG.colors.primaryHover,
         active = imgui.ImVec4(0.0, 0.4, 0.85, 1.0),
         text = imgui.ImVec4(1, 1, 1, 1)
-    }) then
+    }, "New conversation", scaled(7)) then
         state.showNewContactDialog = true
         state.newContactPhone[0] = 0
         state.newContactName[0] = 0
@@ -354,7 +355,7 @@ M.drawLeftPanel = function()
         imgui.ColorConvertFloat4ToU32(CONFIG.colors.leftPanel)
     )
     
-    drawHeader(panelWidth)
+    drawHeader(panelWidth, isMobile)
     
     -- Separator
     local separatorY = scaled(77)

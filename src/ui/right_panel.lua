@@ -145,6 +145,56 @@ local function drawEmptyState(rightPanelX, rightPanelWidth, windowSize)
     imgui.TextColored(CONFIG.colors.textGray, "Select a contact to start messaging")
 end
 
+local function openEditContactDialog(contact)
+    state.editContactPhone = imgui.new.char[32](contact.phone or "")
+    state.editContactName = imgui.new.char[64](contact.name or "")
+    state.showEditContactDialog = true
+    imgui.OpenPopup("Edit Contact")
+end
+
+local function openDeleteContactDialog(contact)
+    state.deleteContactName = contact.name or ""
+    state.deleteContactPhone = contact.phone or ""
+    state.showDeleteConfirmDialog = true
+    imgui.OpenPopup("Confirm Delete")
+end
+
+local function drawContactActionsMenu(contact)
+    local requestedAction = nil
+    imgui.SetNextWindowSize(imgui.ImVec2(scaled(160), scaled(82)), imgui.Cond.Always)
+    imgui.PushStyleColor(imgui.Col.PopupBg, CONFIG.colors.background)
+    imgui.PushStyleColor(imgui.Col.Border, CONFIG.colors.border)
+    if imgui.BeginPopup("##contactactions") then
+        if helpers.drawStyledButton(imgui, "Edit contact##menuedit", imgui.ImVec2(scaled(144), scaled(28)), {
+            button = CONFIG.colors.searchBg,
+            hovered = CONFIG.colors.selected,
+            active = CONFIG.colors.border,
+            text = CONFIG.colors.textDark
+        }) then
+            requestedAction = "edit"
+            imgui.CloseCurrentPopup()
+        end
+
+        if helpers.drawStyledButton(imgui, "Delete contact##menudelete", imgui.ImVec2(scaled(144), scaled(28)), {
+            button = CONFIG.colors.background,
+            hovered = imgui.ImVec4(0.9, 0.3, 0.3, 0.22),
+            active = imgui.ImVec4(0.9, 0.3, 0.3, 0.35),
+            text = imgui.ImVec4(0.9, 0.3, 0.3, 1.0)
+        }) then
+            requestedAction = "delete"
+            imgui.CloseCurrentPopup()
+        end
+        imgui.EndPopup()
+    end
+    imgui.PopStyleColor(2)
+
+    if requestedAction == "edit" then
+        openEditContactDialog(contact)
+    elseif requestedAction == "delete" then
+        openDeleteContactDialog(contact)
+    end
+end
+
 local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, rightPanelWidth, isMobile, contact)
     drawList:AddRectFilled(
         imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y),
@@ -153,13 +203,13 @@ local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, righ
     )
     
     if isMobile then
-        imgui.SetCursorPos(imgui.ImVec2(scaled(12), scaled(12)))
-        if helpers.drawStyledButton(imgui, "<##back", imgui.ImVec2(scaled(32), scaled(26)), {
-            button = imgui.ImVec4(0.9, 0.9, 0.9, 1.0),
-            hovered = CONFIG.colors.primary,
-            active = CONFIG.colors.primaryHover,
-            text = imgui.ImVec4(0.3, 0.3, 0.3, 1.0)
-        }) then
+        imgui.SetCursorPos(imgui.ImVec2(scaled(12), scaled(10)))
+        if helpers.drawIconButton(imgui, "##back", "back", imgui.ImVec2(scaled(30), scaled(30)), {
+            button = CONFIG.colors.searchBg,
+            hovered = CONFIG.colors.selected,
+            active = CONFIG.colors.border,
+            text = CONFIG.colors.textDark
+        }, "Back to contacts", scaled(7)) then
             state.selectedContact = nil
             state.scrollToBottom = false
         end
@@ -202,43 +252,29 @@ local function drawChatHeader(drawList, windowPos, windowSize, rightPanelX, righ
         CONFIG.colors.textGray
     imgui.TextColored(statusTextClr, tostring(contact.phone or "") .. " | " .. onlineStatus)
     
-    imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(180), scaled(12)))
-    if helpers.drawStyledButton(imgui, "Call##callcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
+    local actionSize = imgui.ImVec2(scaled(30), scaled(30))
+    imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(114), scaled(10)))
+    if helpers.drawIconButton(imgui, "##callcontact", "phone", actionSize, {
         button = imgui.ImVec4(0.2, 0.7, 0.3, 1.0),
         hovered = imgui.ImVec4(0.2, 0.8, 0.35, 1.0),
         active = imgui.ImVec4(0.15, 0.6, 0.25, 1.0),
         text = imgui.ImVec4(1, 1, 1, 1)
-    }) then
+    }, "Call contact", scaled(7)) then
         if contact.phone then
             sampSendChat("/c " .. contact.phone)
         end
     end
     
-    imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(135), scaled(12)))
-    if helpers.drawStyledButton(imgui, "Edit##editcontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
-        button = imgui.ImVec4(0.9, 0.9, 0.9, 1.0),
-        hovered = CONFIG.colors.primary,
-        active = CONFIG.colors.primaryHover,
-        text = imgui.ImVec4(0.3, 0.3, 0.3, 1.0)
-    }) then
-        state.editContactPhone = imgui.new.char[32](contact.phone or "")
-        state.editContactName = imgui.new.char[64](contact.name or "")
-        state.showEditContactDialog = true
-        imgui.OpenPopup("Edit Contact")
+    imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(78), scaled(10)))
+    if helpers.drawIconButton(imgui, "##contactactionsbtn", "more", actionSize, {
+        button = CONFIG.colors.searchBg,
+        hovered = CONFIG.colors.selected,
+        active = CONFIG.colors.border,
+        text = CONFIG.colors.textDark
+    }, "Contact actions", scaled(7)) then
+        imgui.OpenPopup("##contactactions")
     end
-    
-    imgui.SetCursorPos(imgui.ImVec2(rightPanelX + rightPanelWidth - scaled(90), scaled(12)))
-    if helpers.drawStyledButton(imgui, "Del##deletecontact", imgui.ImVec2(scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_W), scaled(CONFIG.CONSTANTS.UI.BUTTONS.ACTION_H)), {
-        button = imgui.ImVec4(0.9, 0.3, 0.3, 1.0),
-        hovered = imgui.ImVec4(1.0, 0.4, 0.4, 1.0),
-        active = imgui.ImVec4(0.8, 0.2, 0.2, 1.0),
-        text = imgui.ImVec4(1, 1, 1, 1)
-    }) then
-        state.deleteContactName = contact.name or ""
-        state.deleteContactPhone = contact.phone or ""
-        state.showDeleteConfirmDialog = true
-        imgui.OpenPopup("Confirm Delete")
-    end
+    drawContactActionsMenu(contact)
     
     drawList:AddLine(
         imgui.ImVec2(windowPos.x + rightPanelX, windowPos.y + scaled(CONFIG.headerHeight)),
